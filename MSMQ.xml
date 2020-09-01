@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.1.21</Version>
+      <Version>10.0.1.23</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -644,7 +644,7 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
 #  MSMQ Server Stats and Performance Script
 #
 #  Author:  Kevin Holman
-#  v1.0
+#  v1.1
 #=================================================================================
 param($ComputerName)
 
@@ -677,6 +677,9 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `
 
 # Begin MAIN script section
 #=================================================================================
+# Load PropertyBag function 
+$bag = $momapi.CreatePropertyBag()
+
 #Modify the environment variables for this session if a cluster
 $IsCluster = $false
 #$ComputerNameFromEnv = $env:computername
@@ -716,16 +719,14 @@ $OutgoingMessagesSec = (Get-Counter "\MSMQ Service\Outgoing Messages/sec").Count
 $BytesInDeadLetterQueue = (Get-Counter "\MSMQ Queue(Computer Queues)\Bytes in Queue").CounterSamples.CookedValue
 $MessagesInDeadLetterQueue = (Get-Counter "\MSMQ Queue(Computer Queues)\Messages in Queue").CounterSamples.CookedValue
 
-$momapi.LogScriptEvent($ScriptName,14131,0,"`nComputerName: ($ComputerName). `nTotalMessagesInAllQueues: ($TotalMessagesInAllQueues). `nTotalBytesInAllQueues: ($TotalBytesInAllQueues). `nSessions: ($Sessions). `nIncomingMessagesSec: ($IncomingMessagesSec). `nOutgoingMessagesSec: ($OutgoingMessagesSec). `nMessagesInDeadLetterQueue: ($MessagesInDeadLetterQueue). `nBytesInDeadLetterQueue: ($BytesInDeadLetterQueue).")
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nComputerName: ($ComputerName). `nTotalMessagesInAllQueues: ($TotalMessagesInAllQueues). `nTotalBytesInAllQueues: ($TotalBytesInAllQueues). `nSessions: ($Sessions). `nIncomingMessagesSec: ($IncomingMessagesSec). `nOutgoingMessagesSec: ($OutgoingMessagesSec). `nMessagesInDeadLetterQueue: ($MessagesInDeadLetterQueue). `nBytesInDeadLetterQueue: ($BytesInDeadLetterQueue).")
 
 IF ($Error)
 {
   $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nError getting Performance Data: ($Error).")
 }
 
-# Load PropertyBag function 
-$bag = $momapi.CreatePropertyBag()
-#Create PropertyBags
+#Add values to PropertyBags
 $bag.AddValue('NetBIOSName',$NetBIOSName)  
 $bag.AddValue('TotalMessagesInAllQueues',$TotalMessagesInAllQueues)
 $bag.AddValue('TotalBytesInAllQueues',$TotalBytesInAllQueues)
@@ -734,7 +735,95 @@ $bag.AddValue('IncomingMessagesSec',$IncomingMessagesSec)
 $bag.AddValue('OutgoingMessagesSec',$OutgoingMessagesSec)
 $bag.AddValue('BytesInDeadLetterQueue',$BytesInDeadLetterQueue)
 $bag.AddValue('MessagesInDeadLetterQueue',$MessagesInDeadLetterQueue)
-#Return each property bag as we create and populate it.
+
+
+##### Begin Process section
+### Begin Process Memory
+#Clear any errors
+IF ($Error){$Error.Clear()}
+[string]$ProcessName = "mqsvc"
+
+#Get the process values into an array
+[array]$ProcessPBArr = Get-Process -Name $ProcessName | select PrivateMemorySize64
+[int]$ProcessPBArrCount = $ProcessPBArr.Count
+
+#Check if error or null here because process is not running
+IF ($Error)
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,2,"`nError getting Process info from Powershell.  Error is ($Error).")
+  $bag.AddValue("MemoryValueMB","0")
+  $bag.AddValue("ProcessesRunning","0")
+}
+ELSEIF ($ProcessPBArrCount -eq 0)
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,2,"`nProcess with name: ($ProcessName) does not exist.")
+  $bag.AddValue("MemoryValueMB","0")
+  $bag.AddValue("ProcessesRunning","0")
+}
+ELSE
+{
+  #Set sum to zero
+  $ProcessValueSumBytes = 0
+
+  #Loop through each process and get sum of values
+  FOREACH ($ProcessPBObj in $ProcessPBArr)
+  {
+    $ProcessValue = $ProcessPBObj.PrivateMemorySize64
+    $ProcessValueSumBytes = $ProcessValueSumBytes + $ProcessValue
+  }
+
+  # Divide bytes value to get Megabytes
+  $ProcessValueSumMBytes = $ProcessValueSumBytes / 1000000
+  # Round the value to no decimals
+  $ProcessValueSumMBytes = [math]::Round($ProcessValueSumMBytes)
+  $bag.AddValue("MemoryValueMB",$ProcessValueSumMBytes)
+  $bag.AddValue("ProcessesRunning",$ProcessPBArrCount)
+}
+
+### Begin Process CPU
+# Clear any errors
+IF ($Error){$Error.Clear()}
+
+#This is the fastest way to get cores
+[int]$LogicalCPUs = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
+
+#Get the process values into an array.  Divide the value from perfmon by the number of cores
+[string]$Filter = "Name like '" + $ProcessName + "%" + "'"
+$ProcArr = Get-WmiObject win32_PerfFormattedData_PerfProc_Process -Filter $Filter
+$ProcArrCount = $ProcArr.Count
+
+[int]$CPUTotal = 0
+[int]$CPUTime = 0
+
+FOREACH ($Proc in $ProcArr)
+{
+  [int]$ProcCPUTime = $Proc.PercentProcessorTime
+  #Divide the process CPU value by the total number of cores to get real total consumption
+  $CPUTime = $ProcCPUTime / $LogicalCPUs
+  #Keep track of the max value for any process we examine
+  IF ($CPUTime -gt $CPUProcessMax){$CPUProcessMax = $CPUTime}
+  #Keep a sum of all process CPU total
+  $CPUTotal += $CPUTime
+}
+
+#Check if error or null here because process is not running
+IF ($Error)
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,2,"`nError getting CPU Process value.  Error is ($Error).")
+  $bag.AddValue("CPUValue","0")
+
+}
+ELSEIF ($ProcArrCount -eq 0)
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,2,"`nProcess with name: ($ProcessName) does not exist.")
+  $bag.AddValue("CPUValue","0")
+}
+ELSE
+{
+  $bag.AddValue("CPUValue",$CPUTotal)
+}
+
+#Return property bags
 $bag
 
 IF ($IsCluster)
@@ -2091,6 +2180,46 @@ End Class</ScriptBody>
       </Discovery>
     </Discoveries>
     <Rules>
+      <Rule ID="MSMQ.Server.ProcessPercentProcessorTime.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+        <Category>PerformanceCollection</Category>
+        <DataSources>
+          <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
+            <IntervalSeconds>901</IntervalSeconds>
+            <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+            <TimeoutSeconds>300</TimeoutSeconds>
+          </DataSource>
+        </DataSources>
+        <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
+          <ObjectName>Process</ObjectName>
+          <CounterName>% Processor Time</CounterName>
+          <InstanceName>mqsvc</InstanceName>
+          <Value>$Data/Property[@Name='CPUValue']$</Value>
+        </ConditionDetection>
+        <WriteActions>
+          <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
+          <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
+        </WriteActions>
+      </Rule>	
+      <Rule ID="MSMQ.Server.ProcessPrivateBytes.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+        <Category>PerformanceCollection</Category>
+        <DataSources>
+          <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
+            <IntervalSeconds>901</IntervalSeconds>
+            <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+            <TimeoutSeconds>300</TimeoutSeconds>
+          </DataSource>
+        </DataSources>
+        <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
+          <ObjectName>Process</ObjectName>
+          <CounterName>Private MBytes</CounterName>
+          <InstanceName>mqsvc</InstanceName>
+          <Value>$Data/Property[@Name='MemoryValueMB']$</Value>
+        </ConditionDetection>
+        <WriteActions>
+          <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
+          <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
+        </WriteActions>
+      </Rule>	
       <Rule ID="MSMQ.Server.TotalMessagesInAllQueues.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
         <Category>PerformanceCollection</Category>
         <DataSources>
@@ -7422,6 +7551,56 @@ End Class</ScriptBody>
       </Task>
     </Tasks>
     <Monitors>
+      <UnitMonitor ID="MSMQ.Server.ProcessPercentProcessorTime.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
+        <Category>PerformanceHealth</Category>
+        <AlertSettings AlertMessage="MSMQ.Server.ProcessPercentProcessorTime.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>MatchMonitorHealth</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter1>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="Success" MonitorTypeStateID="Success" HealthState="Success" />
+          <OperationalState ID="Warning" MonitorTypeStateID="Warning" HealthState="Warning" />
+          <OperationalState ID="Error" MonitorTypeStateID="Error" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>901</IntervalSeconds>
+          <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+          <TimeoutSeconds>300</TimeoutSeconds>
+          <CounterName>CPUValue</CounterName>
+          <WarningThreshold>60</WarningThreshold>
+          <CriticalThreshold>80</CriticalThreshold>
+        </Configuration>
+      </UnitMonitor>
+      <UnitMonitor ID="MSMQ.Server.ProcessPrivateBytes.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
+        <Category>PerformanceHealth</Category>
+        <AlertSettings AlertMessage="MSMQ.Server.ProcessPrivateBytes.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>MatchMonitorHealth</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter1>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="Success" MonitorTypeStateID="Success" HealthState="Success" />
+          <OperationalState ID="Warning" MonitorTypeStateID="Warning" HealthState="Warning" />
+          <OperationalState ID="Error" MonitorTypeStateID="Error" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>901</IntervalSeconds>
+          <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+          <TimeoutSeconds>300</TimeoutSeconds>
+          <CounterName>MemoryValueMB</CounterName>
+          <WarningThreshold>2048</WarningThreshold>
+          <CriticalThreshold>4096</CriticalThreshold>
+        </Configuration>
+      </UnitMonitor>	  
       <UnitMonitor ID="MSMQ.Server.IncomingMessagesSec.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
         <Category>PerformanceHealth</Category>
         <AlertSettings AlertMessage="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage">
@@ -7442,14 +7621,14 @@ End Class</ScriptBody>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <CounterName>Incoming Messages/sec</CounterName>
+          <CounterName>IncomingMessagesSec</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
       <UnitMonitor ID="MSMQ.Server.OutgoingMessagesSec.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
         <Category>PerformanceHealth</Category>
-        <AlertSettings AlertMessage="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage">
+        <AlertSettings AlertMessage="MSMQ.Server.OutgoingMessagesSec.Monitor.AlertMessage">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
@@ -7467,14 +7646,14 @@ End Class</ScriptBody>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <CounterName>Outgoing Messages/sec</CounterName>
+          <CounterName>OutgoingMessagesSec</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
       <UnitMonitor ID="MSMQ.Server.TotalBytesInAllQueues.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
         <Category>PerformanceHealth</Category>
-        <AlertSettings AlertMessage="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage">
+        <AlertSettings AlertMessage="MSMQ.Server.TotalBytesInAllQueues.Monitor.AlertMessage">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
@@ -7492,14 +7671,14 @@ End Class</ScriptBody>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <CounterName>Total bytes in all queues</CounterName>
+          <CounterName>TotalBytesInAllQueues</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
       <UnitMonitor ID="MSMQ.Server.TotalMessagesInAllQueues.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
         <Category>PerformanceHealth</Category>
-        <AlertSettings AlertMessage="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage">
+        <AlertSettings AlertMessage="MSMQ.Server.TotalMessagesInAllQueues.Monitor.AlertMessage">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
@@ -7517,7 +7696,7 @@ End Class</ScriptBody>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <CounterName>Total messages in all queues</CounterName>
+          <CounterName>TotalMessagesInAllQueues</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
@@ -8062,6 +8241,8 @@ End Class</ScriptBody>
       <FolderItem ElementID="MSMQ.Sessions.Performance.View" ID="MSMQ.Sessions.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
     </FolderItems>
     <StringResources>
+      <StringResource ID="MSMQ.Server.ProcessPercentProcessorTime.Monitor.AlertMessage" />
+      <StringResource ID="MSMQ.Server.ProcessPrivateBytes.Monitor.AlertMessage" />	  
       <StringResource ID="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Server.OutgoingMessagesSec.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Server.TotalBytesInAllQueues.Monitor.AlertMessage" />	  
@@ -8173,6 +8354,44 @@ End Class</ScriptBody>
           <Name>MSMQ Management Pack</Name>
           <Description>Microsoft Message Queuing. This Management Pack will discover and monitor MSMQ.</Description>
         </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor">
+          <Name>MSMQ Server Process Percent ProcessorTime Monitor</Name>
+          <Description></Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor.AlertMessage">
+          <Name>MSMQ Server Process Percent Processor Time exceeds threshold</Name>
+          <Description>The current Process Percent Processor Time is above the threshold.
+CPU Value of all processes: {0}
+</Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor" SubElementID="Error">
+          <Name>Error</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor" SubElementID="Success">
+          <Name>Success</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor" SubElementID="Warning">
+          <Name>Warning</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor">
+          <Name>MSMQ Server Process Private MBytes Monitor</Name>
+          <Description></Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor.AlertMessage">
+          <Name>MSMQ Server Process Private MBytes exceeds threshold</Name>
+          <Description>The current Process Private MBytes is above the threshold.
+Value in MB of all processes: {0}
+</Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor" SubElementID="Error">
+          <Name>Error</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor" SubElementID="Success">
+          <Name>Success</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor" SubElementID="Warning">
+          <Name>Warning</Name>
+        </DisplayString>		
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.Monitor">
           <Name>MSMQ Server Total Messages In All Queues Monitor</Name>
           <Description></Description>
@@ -8300,6 +8519,12 @@ Bytes In Queue: {1}</Description>
         <DisplayString ElementID="MSMQ.Queue.BytesInQueue.PerformanceCollection.Rule">
           <Name>MSMQ - Bytes In Queue PerformanceCollection Rule</Name>
         </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.PerformanceCollection.Rule">
+          <Name>MSMQ - Server Process Percent Processor Time PerformanceCollection Rule</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.PerformanceCollection.Rule">
+          <Name>MSMQ - Server Process Private Bytes PerformanceCollection Rule</Name>
+        </DisplayString>		
         <DisplayString ElementID="MSMQ.Client.Discovery">
           <Name>Discover MSMQ Clients</Name>
           <Description>Discover MSMQ Clients</Description>
