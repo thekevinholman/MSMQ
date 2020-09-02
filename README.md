@@ -2,7 +2,7 @@
 
 ## [Download Here][Download 10.0.2.0]
 
-[Download 10.2.0.0]: https://github.com/thekevinholman/MP.Name/releases/download/10.0.0.0/MP.Name.10.0.0.0.mp
+[Download 10.0.2.0]: https://github.com/thekevinholman/MP.Name/releases/download/10.0.0.0/MP.Name.10.0.0.0.mp
 
 ###MSMQ Management Pack to Monitor Microsoft Message Queuing.  This MP supports MSMQ on Windows Server 2012 and later.
 
