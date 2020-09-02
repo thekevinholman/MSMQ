@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.1.23</Version>
+      <Version>10.0.2.0</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -428,10 +428,12 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRuntime: ($
         <Configuration>
           <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="DebugLogging" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />		  
           <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
         </Configuration>
         <OverrideableParameters>
           <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="DebugLogging" Selector="$Config/DebugLogging$" ParameterType="string" />			  
           <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
         </OverrideableParameters>
         <ModuleImplementation Isolation="Any">
@@ -452,9 +454,9 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRuntime: ($
 #  MSMQ Queue Stats and Performance Script
 #
 #  Author:  Kevin Holman
-#  v1.4
+#  v1.6
 #=================================================================================
-param($ComputerName)
+param([string]$ComputerName,[string]$DebugLogging)
 
 # Manual Testing section - put stuff here for manually testing script - typically parameters:
 #=================================================================================
@@ -478,13 +480,17 @@ $StartTime = Get-Date
 $whoami = whoami
 # Load MOMScript API
 $momapi = New-Object -comObject MOM.ScriptAPI
-#Log script event that we are starting task
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting. `nRunning as ($whoami). `nComputerName: ($ComputerName).")
 #=================================================================================
 
 
 # Begin MAIN script section
 #=================================================================================
+#Check DebugLogging
+IF ($DebugLogging.ToUpper() -eq "TRUE"){$DBL=$true}
+
+#Log script event that we are starting task
+IF ($DBL){$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting. `nRunning For: ($ComputerName). `nRunning as: ($whoami). `nDebugLogging: ($DebugLogging).")}
+
 #Modify the environment variables for this session if a cluster
 $IsCluster = $false
 $ComputerNameFromEnv = $env:computername
@@ -506,7 +512,7 @@ $Queues = Get-MsmqQueue
 
 IF ($Error)
 {
-  $momapi.LogScriptEvent($ScriptName,$EventID,1,"`nFATAL ERROR:  MSMQ PowerShell Commandlet failed attempting (Get-MsmqQueue). `nTerminating. `nError is ($Error).")
+  $momapi.LogScriptEvent($ScriptName,$EventID,2,"`nFATAL ERROR:  MSMQ PowerShell Commandlet failed attempting (Get-MsmqQueue). `nTerminating. `nError is ($Error).")
   EXIT
 }
 
@@ -519,10 +525,16 @@ FOREACH ($Queue in $Queues)
   $QueueName = $Queue.QueueName
   $MessageCount = $Queue.MessageCount
   $BytesInQueue = $Queue.BytesInQueue
+  $KBytesInQueue = [math]::Round(($BytesInQueue / 1000),0)
   $JournalMessageCount = $Queue.JournalMessageCount  
   $BytesInJournal = $Queue.BytesInJournal
-  
-  $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nQueue Data:. `nQueueName: ($QueueName). `nMessageCount: ($MessageCount). `nBytesInQueue: ($BytesInQueue). `nJournalMessageCount: ($JournalMessageCount). `nBytesInJournal: ($BytesInJournal).")
+  $KBytesInJournal = [math]::Round(($BytesInJournal / 1000),0)
+  $MaximumQueueSizeKB = $Queue.MaximumQueueSize
+  $MaximumJournalSizeKB = $Queue.MaximumJournalSize
+  $QueuePercentUsed = [math]::Round((($KBytesInQueue / $MaximumQueueSizeKB)*100),0)
+  $JournalPercentUsed = [math]::Round((($KBytesInJournal / $MaximumJournalSizeKB)*100),0)
+
+  IF ($DBL){$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `nQueueName: ($QueueName). `nMessages In Queue: ($MessageCount). `nKBytes In Queue: ($KBytesInQueue). `nMessages In Journal Queue: ($JournalMessageCount). `nKBytes In Journal Queue: ($KBytesInJournal). `nQueue Percent Used: ($QueuePercentUsed). `nJournal Percent Used: ($JournalPercentUsed).")}
  
   # Load PropertyBag function 
   $bag = $momapi.CreatePropertyBag()
@@ -530,9 +542,11 @@ FOREACH ($Queue in $Queues)
   $bag.AddValue('NetBIOSName',$NetBIOSName)  
   $bag.AddValue('QueueName',$QueueName)
   $bag.AddValue('Messages In Queue',$MessageCount)
-  $bag.AddValue('Bytes In Queue',$BytesInQueue)
+  $bag.AddValue('KBytes In Queue',$KBytesInQueue)
   $bag.AddValue('Messages In Journal Queue',$JournalMessageCount)
-  $bag.AddValue('Bytes In Journal Queue',$BytesInJournal)
+  $bag.AddValue('KBytes In Journal Queue',$KBytesInJournal)
+  $bag.AddValue('Queue Percent Used',$QueuePercentUsed)
+  $bag.AddValue('Journal Percent Used',$JournalPercentUsed)
   #Return each property bag as we create and populate it.
   $bag
 }
@@ -552,7 +566,7 @@ IF ($IsCluster)
 #Log an event for script ending and total execution time.
 $EndTime = Get-Date
 $ScriptTime = ($EndTime - $StartTime).TotalSeconds
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as ($whoami). `nScript Runtime: ($ScriptTime) seconds.")
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning For: ($ComputerName). `nRunning as ($whoami). `nScript Runtime: ($ScriptTime) seconds.")
 #=================================================================================
 # End of script
                 </ScriptBody>
@@ -561,6 +575,10 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
                     <Name>ComputerName</Name>
                     <Value>$Config/ComputerName$</Value>
                   </Parameter>
+                  <Parameter>
+                    <Name>DebugLogging</Name>
+                    <Value>$Config/DebugLogging$</Value>
+                  </Parameter>					  
                 </Parameters>
                 <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
               </ProbeAction>
@@ -578,11 +596,13 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
         <Configuration>
           <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+		  <xsd:element minOccurs="1" type="xsd:string" name="DebugLogging" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="QueueName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
         </Configuration>
         <OverrideableParameters>
           <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+		  <OverrideableParameter ID="DebugLogging" Selector="$Config/DebugLogging$" ParameterType="string" />
           <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
         </OverrideableParameters>
         <ModuleImplementation Isolation="Any">
@@ -591,6 +611,7 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
               <DataSource ID="DS" TypeID="MSMQ.QueueStats.DS">
                 <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
                 <ComputerName>$Config/ComputerName$</ComputerName>
+				<DebugLogging>$Config/DebugLogging$</DebugLogging>
                 <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
               </DataSource>
               <ConditionDetection ID="Filter" TypeID="System!System.ExpressionFilter">
@@ -620,10 +641,12 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
         <Configuration>
           <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="DebugLogging" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />		  
           <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
         </Configuration>
         <OverrideableParameters>
           <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="DebugLogging" Selector="$Config/DebugLogging$" ParameterType="string" />		  
           <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
         </OverrideableParameters>
         <ModuleImplementation Isolation="Any">
@@ -644,9 +667,9 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
 #  MSMQ Server Stats and Performance Script
 #
 #  Author:  Kevin Holman
-#  v1.1
+#  v1.3
 #=================================================================================
-param($ComputerName)
+param([string]$ComputerName,[string]$DebugLogging)
 
 # Manual Testing section - put stuff here for manually testing script - typically parameters:
 #=================================================================================
@@ -670,13 +693,17 @@ $StartTime = Get-Date
 $whoami = whoami
 # Load MOMScript API
 $momapi = New-Object -comObject MOM.ScriptAPI
-#Log script event that we are starting task
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `nScript is starting. `nRunning as ($whoami).")
 #=================================================================================
 
 
 # Begin MAIN script section
 #=================================================================================
+#Check DebugLogging
+IF ($DebugLogging.ToUpper() -eq "TRUE"){$DBL=$true}
+
+#Log script event that we are starting task
+IF ($DBL){$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting. `nRunning For: ($ComputerName). `nRunning as: ($whoami). `nDebugLogging: ($DebugLogging).")}
+
 # Load PropertyBag function 
 $bag = $momapi.CreatePropertyBag()
 
@@ -685,14 +712,13 @@ $IsCluster = $false
 #$ComputerNameFromEnv = $env:computername
 $ComputerNameFromEnv = hostname
 $NetBIOSName = ($ComputerName.Split("."))[0]
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `nComputerNameFromEnv: ($ComputerNameFromEnv). `nNetBIOSName: ($NetBIOSName).")
 IF ($NetBIOSName -ne $ComputerNameFromEnv)
 {
   #The Environment Variable for ComputerName does not match the ComputerName hosting this Queue
   #This is common on clusters so we must set the environment variables for clusters
-  $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `nComputerName from Environment did not match NetBIOS name passed to script. `nComputerNameFromEnv: ($ComputerNameFromEnv). `nNetBIOSName: ($NetBIOSName).")
+  IF ($DBL){$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `nComputerNameFromEnv: ($ComputerNameFromEnv). `nNetBIOSName: ($NetBIOSName). `nComputerName from Environment did not match NetBIOS name passed to script. `nThis is expected on Clusters so we will modify Cluster Name Environment Variable.")}
   $IsCluster = $true
-#  $env:computername = $NetBIOSName
+  #$env:computername = $NetBIOSName
   $env:_CLUSTER_NETWORK_NAME_ = $NetBIOSName
 }
 ELSE
@@ -703,7 +729,7 @@ ELSE
   IF ($MQClusterServices)
   {
     This is a cluster node.  Stop the script.
-    $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `nStopping script as we will not gather perf data for nodes on a cluster.")
+    IF ($DBL){$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nRunning For: ($ComputerName). `nStopping script as we will not gather perf data for nodes on a cluster.")}
 	EXIT
   }
 }
@@ -713,28 +739,28 @@ $Error.Clear()
 
 $TotalMessagesInAllQueues = (Get-Counter "\MSMQ Service\Total messages in all queues").CounterSamples.CookedValue
 $TotalBytesInAllQueues = (Get-Counter "\MSMQ Service\Total bytes in all queues").CounterSamples.CookedValue
+$TotalKBytesInAllQueues = [math]::Round(($TotalBytesInAllQueues / 1000),0)
 $Sessions = (Get-Counter "\MSMQ Service\Sessions").CounterSamples.CookedValue
 $IncomingMessagesSec = (Get-Counter "\MSMQ Service\Incoming Messages/sec").CounterSamples.CookedValue
 $OutgoingMessagesSec = (Get-Counter "\MSMQ Service\Outgoing Messages/sec").CounterSamples.CookedValue
-$BytesInDeadLetterQueue = (Get-Counter "\MSMQ Queue(Computer Queues)\Bytes in Queue").CounterSamples.CookedValue
 $MessagesInDeadLetterQueue = (Get-Counter "\MSMQ Queue(Computer Queues)\Messages in Queue").CounterSamples.CookedValue
-
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nComputerName: ($ComputerName). `nTotalMessagesInAllQueues: ($TotalMessagesInAllQueues). `nTotalBytesInAllQueues: ($TotalBytesInAllQueues). `nSessions: ($Sessions). `nIncomingMessagesSec: ($IncomingMessagesSec). `nOutgoingMessagesSec: ($OutgoingMessagesSec). `nMessagesInDeadLetterQueue: ($MessagesInDeadLetterQueue). `nBytesInDeadLetterQueue: ($BytesInDeadLetterQueue).")
+$BytesInDeadLetterQueue = (Get-Counter "\MSMQ Queue(Computer Queues)\Bytes in Queue").CounterSamples.CookedValue
+$KBytesInDeadLetterQueue = [math]::Round(($BytesInDeadLetterQueue / 1000),0)
 
 IF ($Error)
 {
-  $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nError getting Performance Data: ($Error).")
+  $momapi.LogScriptEvent($ScriptName,$EventID,2,"`nError getting Perfmon Performance Data using Get-Counter: ($Error).")
 }
 
 #Add values to PropertyBags
 $bag.AddValue('NetBIOSName',$NetBIOSName)  
 $bag.AddValue('TotalMessagesInAllQueues',$TotalMessagesInAllQueues)
-$bag.AddValue('TotalBytesInAllQueues',$TotalBytesInAllQueues)
+$bag.AddValue('TotalKBytesInAllQueues',$TotalKBytesInAllQueues)
 $bag.AddValue('Sessions',$Sessions)
 $bag.AddValue('IncomingMessagesSec',$IncomingMessagesSec)
 $bag.AddValue('OutgoingMessagesSec',$OutgoingMessagesSec)
-$bag.AddValue('BytesInDeadLetterQueue',$BytesInDeadLetterQueue)
 $bag.AddValue('MessagesInDeadLetterQueue',$MessagesInDeadLetterQueue)
+$bag.AddValue('KBytesInDeadLetterQueue',$KBytesInDeadLetterQueue)
 
 
 ##### Begin Process section
@@ -811,7 +837,6 @@ IF ($Error)
 {
   $momapi.LogScriptEvent($ScriptName,$EventID,2,"`nError getting CPU Process value.  Error is ($Error).")
   $bag.AddValue("CPUValue","0")
-
 }
 ELSEIF ($ProcArrCount -eq 0)
 {
@@ -841,7 +866,7 @@ IF ($IsCluster)
 #Log an event for script ending and total execution time.
 $EndTime = Get-Date
 $ScriptTime = ($EndTime - $StartTime).TotalSeconds
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as ($whoami). `nScript Runtime: ($ScriptTime) seconds. `nComputerName: ($ComputerName).")
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as ($whoami). `nScript Runtime: ($ScriptTime) seconds. `nComputerName: ($ComputerName). `nTotalMessagesInAllQueues: ($TotalMessagesInAllQueues). `nTotalKBytesInAllQueues: ($TotalKBytesInAllQueues). `nSessions: ($Sessions). `nIncomingMessagesSec: ($IncomingMessagesSec). `nOutgoingMessagesSec: ($OutgoingMessagesSec). `nMessagesInDeadLetterQueue: ($MessagesInDeadLetterQueue). `nKBytesInDeadLetterQueue: ($KBytesInDeadLetterQueue). `nNumber of MSMQ Processes Running: ($ProcessPBArrCount). `nCPU Percent Time Value For All MSMQ Processes: ($CPUTotal). `nMemory MB Value For All MSMQ Processes: ($ProcessValueSumMBytes).")
 #=================================================================================
 # End of script
                 </ScriptBody>
@@ -850,6 +875,10 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
                     <Name>ComputerName</Name>
                     <Value>$Config/ComputerName$</Value>
                   </Parameter>
+                  <Parameter>
+                    <Name>DebugLogging</Name>
+                    <Value>$Config/DebugLogging$</Value>
+                  </Parameter>				  
                 </Parameters>
                 <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
               </ProbeAction>
@@ -863,47 +892,6 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
         </ModuleImplementation>
         <OutputType>System!System.PropertyBagData</OutputType>
       </DataSourceModuleType>	  
-      <DataSourceModuleType ID="MSMQ.PerformanceCollectionRenameCounter.DS" Accessibility="Public" Batching="false">
-        <Configuration>
-          <xsd:element minOccurs="1" name="ComputerName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-          <xsd:element minOccurs="1" name="ObjectName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-          <xsd:element minOccurs="1" name="CounterName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-          <xsd:element minOccurs="0" maxOccurs="1" name="InstanceName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-          <xsd:element minOccurs="1" name="NewObjectName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-          <xsd:element minOccurs="1" name="NewCounterName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-          <xsd:element minOccurs="0" maxOccurs="1" name="NewInstanceName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-          <xsd:element minOccurs="1" name="Frequency" type="xsd:unsignedInt" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
-        </Configuration>
-        <OverrideableParameters>
-          <OverrideableParameter ID="Frequency" Selector="$Config/Frequency$" ParameterType="int" />
-        </OverrideableParameters>
-        <ModuleImplementation Isolation="Any">
-          <Composite>
-            <MemberModules>
-              <DataSource ID="DS" TypeID="Perf!System.Performance.DataProvider">
-                <ComputerName>$Config/ComputerName$</ComputerName>
-                <CounterName>$Config/CounterName$</CounterName>
-                <ObjectName>$Config/ObjectName$</ObjectName>
-                <InstanceName>$Config/InstanceName$</InstanceName>
-                <AllInstances>false</AllInstances>
-                <Frequency>$Config/Frequency$</Frequency>
-              </DataSource>
-              <ConditionDetection ID="MapToPerf" TypeID="Perf!System.Performance.DataGenericMapper">
-                <ObjectName>$Config/NewObjectName$</ObjectName>
-                <CounterName>$Config/NewCounterName$</CounterName>
-                <InstanceName>$Config/NewInstanceName$</InstanceName>
-                <Value>$Data/Value$</Value>
-              </ConditionDetection>
-            </MemberModules>
-            <Composition>
-              <Node ID="MapToPerf">
-                <Node ID="DS" />
-              </Node>
-            </Composition>
-          </Composite>
-        </ModuleImplementation>
-        <OutputType>Perf!System.Performance.Data</OutputType>
-      </DataSourceModuleType>
       <DataSourceModuleType ID="MSMQ.Queue.Discovery.DS" Accessibility="Internal" RunAs="MSMQ.RunAsProfile" Batching="false">
         <Configuration>
           <xsd:element minOccurs="1" name="IntervalSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
@@ -1730,6 +1718,7 @@ End Class</ScriptBody>
         <Configuration>
           <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+		  <xsd:element minOccurs="1" type="xsd:string" name="DebugLogging" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />	
           <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="QueueName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="CounterName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
@@ -1738,6 +1727,7 @@ End Class</ScriptBody>
         </Configuration>
         <OverrideableParameters>
           <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+		  <OverrideableParameter ID="DebugLogging" Selector="$Config/DebugLogging$" ParameterType="string" />
           <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
           <OverrideableParameter ID="WarningThreshold" Selector="$Config/WarningThreshold$" ParameterType="int" />
           <OverrideableParameter ID="CriticalThreshold" Selector="$Config/CriticalThreshold$" ParameterType="int" />
@@ -1747,6 +1737,7 @@ End Class</ScriptBody>
             <DataSource ID="DS" TypeID="MSMQ.QueueStats.Filtered.DS">
               <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
               <ComputerName>$Config/ComputerName$</ComputerName>
+              <DebugLogging>$Config/DebugLogging$</DebugLogging>			  
               <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
               <QueueName>$Config/QueueName$</QueueName>
             </DataSource>
@@ -1833,6 +1824,7 @@ End Class</ScriptBody>
         <Configuration>
           <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+		  <xsd:element minOccurs="1" type="xsd:string" name="DebugLogging" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:string" name="CounterName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" type="xsd:integer" name="WarningThreshold" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
@@ -1840,6 +1832,7 @@ End Class</ScriptBody>
         </Configuration>
         <OverrideableParameters>
           <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+		  <OverrideableParameter ID="DebugLogging" Selector="$Config/DebugLogging$" ParameterType="string" />
           <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
           <OverrideableParameter ID="WarningThreshold" Selector="$Config/WarningThreshold$" ParameterType="int" />
           <OverrideableParameter ID="CriticalThreshold" Selector="$Config/CriticalThreshold$" ParameterType="int" />
@@ -1849,6 +1842,7 @@ End Class</ScriptBody>
             <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
               <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
               <ComputerName>$Config/ComputerName$</ComputerName>
+			  <DebugLogging>$Config/DebugLogging$</DebugLogging>
               <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
             </DataSource>
             <ConditionDetection ID="HealthyCondition" TypeID="System!System.ExpressionFilter">
@@ -2186,6 +2180,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
@@ -2200,12 +2195,13 @@ End Class</ScriptBody>
           <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
         </WriteActions>
       </Rule>	
-      <Rule ID="MSMQ.Server.ProcessPrivateBytes.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+      <Rule ID="MSMQ.Server.ProcessPrivateMBytes.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
         <Category>PerformanceCollection</Category>
         <DataSources>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
@@ -2226,6 +2222,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
@@ -2240,20 +2237,21 @@ End Class</ScriptBody>
           <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
         </WriteActions>
       </Rule>	
-      <Rule ID="MSMQ.Server.TotalBytesInAllQueues.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+      <Rule ID="MSMQ.Server.TotalKBytesInAllQueues.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
         <Category>PerformanceCollection</Category>
         <DataSources>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
           <ObjectName>MSMQ Service</ObjectName>
-          <CounterName>Total bytes in all queues</CounterName>
+          <CounterName>Total Kbytes in all queues</CounterName>
           <InstanceName></InstanceName>
-          <Value>$Data/Property[@Name='TotalBytesInAllQueues']$</Value>
+          <Value>$Data/Property[@Name='TotalKBytesInAllQueues']$</Value>
         </ConditionDetection>
         <WriteActions>
           <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
@@ -2266,6 +2264,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
@@ -2286,6 +2285,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
@@ -2306,6 +2306,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
@@ -2320,20 +2321,21 @@ End Class</ScriptBody>
           <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
         </WriteActions>
       </Rule>
-	  <Rule ID="MSMQ.Server.BytesInDeadLetterQueue.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+	  <Rule ID="MSMQ.Server.KBytesInDeadLetterQueue.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Server" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
         <Category>PerformanceCollection</Category>
         <DataSources>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
           <ObjectName>MSMQ Service</ObjectName>
-          <CounterName>Bytes In Dead Letter Queue</CounterName>
+          <CounterName>KBytes In Dead Letter Queue</CounterName>
           <InstanceName></InstanceName>
-          <Value>$Data/Property[@Name='BytesInDeadLetterQueue']$</Value>
+          <Value>$Data/Property[@Name='KBytesInDeadLetterQueue']$</Value>
         </ConditionDetection>
         <WriteActions>
           <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
@@ -2346,6 +2348,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.ServerStats.DS">
             <IntervalSeconds>901</IntervalSeconds>
             <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
           </DataSource>
         </DataSources>
@@ -2359,43 +2362,89 @@ End Class</ScriptBody>
           <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
           <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
         </WriteActions>
-      </Rule>	  
-      <Rule ID="MSMQ.Queue.BytesInJournalQueue.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Queue" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+      </Rule>	
+      <Rule ID="MSMQ.Queue.QueuePercentUsed.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Queue" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
         <Category>PerformanceCollection</Category>
         <DataSources>
           <DataSource ID="DS" TypeID="MSMQ.QueueStats.Filtered.DS">
             <IntervalSeconds>903</IntervalSeconds>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
             <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
           <ObjectName>MSMQ Queue</ObjectName>
-          <CounterName>Bytes In Journal Queue</CounterName>
+          <CounterName>Queue Percent Used</CounterName>
           <InstanceName>$Data/Property[@Name='NetBIOSName']$\$Data/Property[@Name='QueueName']$</InstanceName>
-          <Value>$Data/Property[@Name='Bytes In Journal Queue']$</Value>
+          <Value>$Data/Property[@Name='Queue Percent Used']$</Value>
         </ConditionDetection>
         <WriteActions>
           <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
           <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
         </WriteActions>
       </Rule>
-      <Rule ID="MSMQ.Queue.BytesInQueue.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Queue" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+      <Rule ID="MSMQ.Queue.JournalPercentUsed.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Queue" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
         <Category>PerformanceCollection</Category>
         <DataSources>
           <DataSource ID="DS" TypeID="MSMQ.QueueStats.Filtered.DS">
             <IntervalSeconds>903</IntervalSeconds>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
             <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
           <ObjectName>MSMQ Queue</ObjectName>
-          <CounterName>Bytes In Queue</CounterName>
+          <CounterName>Journal Percent Used</CounterName>
           <InstanceName>$Data/Property[@Name='NetBIOSName']$\$Data/Property[@Name='QueueName']$</InstanceName>
-          <Value>$Data/Property[@Name='Bytes In Queue']$</Value>
+          <Value>$Data/Property[@Name='Journal Percent Used']$</Value>
+        </ConditionDetection>
+        <WriteActions>
+          <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
+          <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
+        </WriteActions>
+      </Rule>	  
+      <Rule ID="MSMQ.Queue.KBytesInJournalQueue.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Queue" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+        <Category>PerformanceCollection</Category>
+        <DataSources>
+          <DataSource ID="DS" TypeID="MSMQ.QueueStats.Filtered.DS">
+            <IntervalSeconds>903</IntervalSeconds>
+            <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
+            <TimeoutSeconds>300</TimeoutSeconds>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          </DataSource>
+        </DataSources>
+        <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
+          <ObjectName>MSMQ Queue</ObjectName>
+          <CounterName>KBytes In Journal Queue</CounterName>
+          <InstanceName>$Data/Property[@Name='NetBIOSName']$\$Data/Property[@Name='QueueName']$</InstanceName>
+          <Value>$Data/Property[@Name='KBytes In Journal Queue']$</Value>
+        </ConditionDetection>
+        <WriteActions>
+          <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
+          <WriteAction ID="WriteToDW" TypeID="SCDW!Microsoft.SystemCenter.DataWarehouse.PublishPerformanceData" />
+        </WriteActions>
+      </Rule>
+      <Rule ID="MSMQ.Queue.KBytesInQueue.PerformanceCollection.Rule" Enabled="true" Target="MSMQ.Queue" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+        <Category>PerformanceCollection</Category>
+        <DataSources>
+          <DataSource ID="DS" TypeID="MSMQ.QueueStats.Filtered.DS">
+            <IntervalSeconds>903</IntervalSeconds>
+            <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
+            <TimeoutSeconds>300</TimeoutSeconds>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          </DataSource>
+        </DataSources>
+        <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
+          <ObjectName>MSMQ Queue</ObjectName>
+          <CounterName>KBytes In Queue</CounterName>
+          <InstanceName>$Data/Property[@Name='NetBIOSName']$\$Data/Property[@Name='QueueName']$</InstanceName>
+          <Value>$Data/Property[@Name='KBytes In Queue']$</Value>
         </ConditionDetection>
         <WriteActions>
           <WriteAction ID="WriteToDB" TypeID="SC!Microsoft.SystemCenter.CollectPerformanceData" />
@@ -2408,6 +2457,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.QueueStats.Filtered.DS">
             <IntervalSeconds>903</IntervalSeconds>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
             <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
           </DataSource>
@@ -2429,6 +2479,7 @@ End Class</ScriptBody>
           <DataSource ID="DS" TypeID="MSMQ.QueueStats.Filtered.DS">
             <IntervalSeconds>903</IntervalSeconds>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
             <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
           </DataSource>
@@ -7570,15 +7621,16 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <CounterName>CPUValue</CounterName>
           <WarningThreshold>60</WarningThreshold>
           <CriticalThreshold>80</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
-      <UnitMonitor ID="MSMQ.Server.ProcessPrivateBytes.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
+      <UnitMonitor ID="MSMQ.Server.ProcessPrivateMBytes.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
         <Category>PerformanceHealth</Category>
-        <AlertSettings AlertMessage="MSMQ.Server.ProcessPrivateBytes.Monitor.AlertMessage">
+        <AlertSettings AlertMessage="MSMQ.Server.ProcessPrivateMBytes.Monitor.AlertMessage">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
@@ -7595,6 +7647,7 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <CounterName>MemoryValueMB</CounterName>
           <WarningThreshold>2048</WarningThreshold>
@@ -7620,6 +7673,7 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <CounterName>IncomingMessagesSec</CounterName>
           <WarningThreshold>500</WarningThreshold>
@@ -7645,21 +7699,22 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <CounterName>OutgoingMessagesSec</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
-      <UnitMonitor ID="MSMQ.Server.TotalBytesInAllQueues.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
+      <UnitMonitor ID="MSMQ.Server.TotalKBytesInAllQueues.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.ServerPerformance.MonitorType" ConfirmDelivery="false">
         <Category>PerformanceHealth</Category>
-        <AlertSettings AlertMessage="MSMQ.Server.TotalBytesInAllQueues.Monitor.AlertMessage">
+        <AlertSettings AlertMessage="MSMQ.Server.TotalKBytesInAllQueues.Monitor.AlertMessage">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
-            <AlertParameter1>$Data/Context/Property[@Name="TotalBytesInAllQueues"]$</AlertParameter1>
+            <AlertParameter1>$Data/Context/Property[@Name="TotalKBytesInAllQueues"]$</AlertParameter1>
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7670,8 +7725,9 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <CounterName>TotalBytesInAllQueues</CounterName>
+          <CounterName>TotalKBytesInAllQueues</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
@@ -7695,22 +7751,23 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>901</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <CounterName>TotalMessagesInAllQueues</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
-      <UnitMonitor ID="MSMQ.Queue.BytesInJournalQueue.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueuePerformance.MonitorType" ConfirmDelivery="false">
+      <UnitMonitor ID="MSMQ.Queue.QueuePercentUsed.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueuePerformance.MonitorType" ConfirmDelivery="false">
         <Category>AvailabilityHealth</Category>
-        <AlertSettings AlertMessage="MSMQ.Queue.BytesInJournalQueue.Monitor.AlertMessage">
+        <AlertSettings AlertMessage="MSMQ.Queue.QueuePercentUsed.Monitor.AlertMessage">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
-            <AlertParameter2>$Data/Context/Property[@Name="Bytes In Journal Queue"]$</AlertParameter2>
+            <AlertParameter2>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter2>
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7721,23 +7778,80 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>903</IntervalSeconds>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
-          <CounterName>Bytes In Journal Queue</CounterName>
-          <WarningThreshold>10000</WarningThreshold>
-          <CriticalThreshold>500000</CriticalThreshold>
+          <CounterName>Queue Percent Used</CounterName>
+          <WarningThreshold>60</WarningThreshold>
+          <CriticalThreshold>80</CriticalThreshold>
+        </Configuration>
+      </UnitMonitor>	  
+      <UnitMonitor ID="MSMQ.Queue.JournalPercentUsed.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueuePerformance.MonitorType" ConfirmDelivery="false">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="MSMQ.Queue.JournalPercentUsed.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>MatchMonitorHealth</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter2>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="Success" MonitorTypeStateID="Success" HealthState="Success" />
+          <OperationalState ID="Warning" MonitorTypeStateID="Warning" HealthState="Warning" />
+          <OperationalState ID="Error" MonitorTypeStateID="Error" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>903</IntervalSeconds>
+          <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
+          <TimeoutSeconds>300</TimeoutSeconds>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <CounterName>Journal Percent Used</CounterName>
+          <WarningThreshold>60</WarningThreshold>
+          <CriticalThreshold>80</CriticalThreshold>
+        </Configuration>
+      </UnitMonitor>	  
+      <UnitMonitor ID="MSMQ.Queue.KBytesInJournalQueue.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueuePerformance.MonitorType" ConfirmDelivery="false">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="MSMQ.Queue.KBytesInJournalQueue.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>MatchMonitorHealth</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter2>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="Success" MonitorTypeStateID="Success" HealthState="Success" />
+          <OperationalState ID="Warning" MonitorTypeStateID="Warning" HealthState="Warning" />
+          <OperationalState ID="Error" MonitorTypeStateID="Error" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>903</IntervalSeconds>
+          <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
+          <TimeoutSeconds>300</TimeoutSeconds>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <CounterName>KBytes In Journal Queue</CounterName>
+          <WarningThreshold>500</WarningThreshold>
+          <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
-      <UnitMonitor ID="MSMQ.Queue.BytesInQueue.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueuePerformance.MonitorType" ConfirmDelivery="false">
+      <UnitMonitor ID="MSMQ.Queue.KBytesInQueue.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueuePerformance.MonitorType" ConfirmDelivery="false">
         <Category>AvailabilityHealth</Category>
-        <AlertSettings AlertMessage="MSMQ.Queue.BytesInQueue.Monitor.AlertMessage">
+        <AlertSettings AlertMessage="MSMQ.Queue.KBytesInQueue.Monitor.AlertMessage">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
-            <AlertParameter2>$Data/Context/Property[@Name="Bytes In Queue"]$</AlertParameter2>
+            <AlertParameter2>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter2>
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7748,11 +7862,12 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>903</IntervalSeconds>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
-          <CounterName>Bytes In Queue</CounterName>
-          <WarningThreshold>10000</WarningThreshold>
-          <CriticalThreshold>500000</CriticalThreshold>
+          <CounterName>KBytes In Queue</CounterName>
+          <WarningThreshold>500</WarningThreshold>
+          <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
       <UnitMonitor ID="MSMQ.Queue.MessagesInJournalQueue.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueuePerformance.MonitorType" ConfirmDelivery="false">
@@ -7775,10 +7890,11 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>903</IntervalSeconds>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
           <CounterName>Messages In Journal Queue</CounterName>
-          <WarningThreshold>100</WarningThreshold>
+          <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
@@ -7802,11 +7918,12 @@ End Class</ScriptBody>
         <Configuration>
           <IntervalSeconds>903</IntervalSeconds>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
           <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
           <CounterName>Messages In Queue</CounterName>
-          <WarningThreshold>10</WarningThreshold>
-          <CriticalThreshold>101</CriticalThreshold>
+          <WarningThreshold>500</WarningThreshold>
+          <CriticalThreshold>1000</CriticalThreshold>
         </Configuration>
       </UnitMonitor>
       <UnitMonitor ID="MSMQ.Service.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Windows!Microsoft.Windows.CheckNTServiceStateMonitorType" ConfirmDelivery="false">
@@ -7959,24 +8076,24 @@ End Class</ScriptBody>
         </Criteria>
         <Target />
       </View>
-      <View ID="MSMQ.BytesInDeadLetterQueue.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Server" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
+      <View ID="MSMQ.KBytesInDeadLetterQueue.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Server" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
         <Category>Operations</Category>
         <Criteria>
-          <Counter>Bytes in Dead Letter Queue</Counter>
+          <Counter>KBytes in Dead Letter Queue</Counter>
         </Criteria>
         <Target />
       </View>
-      <View ID="MSMQ.BytesInJournalQueue.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
+      <View ID="MSMQ.KBytesInJournalQueue.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
         <Category>Operations</Category>
         <Criteria>
-          <Counter>Bytes In Journal Queue</Counter>
+          <Counter>KBytes In Journal Queue</Counter>
         </Criteria>
         <Target />
       </View>
-      <View ID="MSMQ.BytesInQueue.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
+      <View ID="MSMQ.KBytesInQueue.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
         <Category>Operations</Category>
         <Criteria>
-          <Counter>Bytes In Queue</Counter>
+          <Counter>KBytes In Queue</Counter>
         </Criteria>
         <Target />
       </View>
@@ -7994,10 +8111,10 @@ End Class</ScriptBody>
         </Criteria>
         <Target />
       </View>
-      <View ID="MSMQ.TotalBytesInAllQueues.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Server" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
+      <View ID="MSMQ.TotalKBytesInAllQueues.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Server" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
         <Category>Operations</Category>
         <Criteria>
-          <Counter>Total bytes in all queues</Counter>
+          <Counter>Total Kbytes in all queues</Counter>
         </Criteria>
         <Target />
       </View>
@@ -8228,13 +8345,13 @@ End Class</ScriptBody>
       <FolderItem ElementID="MSMQ.All.Alerts.View" ID="MSMQ.All.Alerts.View.FolderItem" Folder="MSMQ.Root.Folder" />
       <FolderItem ElementID="MSMQ.Queues.State.View" ID="MSMQ.Queues.State.View.FolderItem" Folder="MSMQ.Root.Folder" />
       <FolderItem ElementID="MSMQ.MessagesInDeadLetterQueue.Performance.View" ID="MSMQ.MessagesInDeadLetterQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
-      <FolderItem ElementID="MSMQ.BytesInDeadLetterQueue.Performance.View" ID="MSMQ.BytesInDeadLetterQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
-      <FolderItem ElementID="MSMQ.BytesInJournalQueue.Performance.View" ID="MSMQ.BytesInJournalQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
-      <FolderItem ElementID="MSMQ.BytesInQueue.Performance.View" ID="MSMQ.BytesInQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
+      <FolderItem ElementID="MSMQ.KBytesInDeadLetterQueue.Performance.View" ID="MSMQ.KBytesInDeadLetterQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
+      <FolderItem ElementID="MSMQ.KBytesInJournalQueue.Performance.View" ID="MSMQ.KBytesInJournalQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
+      <FolderItem ElementID="MSMQ.KBytesInQueue.Performance.View" ID="MSMQ.KBytesInQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
       <FolderItem ElementID="MSMQ.MessagesInJournalQueue.Performance.View" ID="MSMQ.MessagesInJournalQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
       <FolderItem ElementID="MSMQ.MessagesInQueue.Performance.View" ID="MSMQ.MessagesInQueue.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
       <FolderItem ElementID="MSMQ.Server.State.View" ID="MSMQ.Server.State.View.FolderItem" Folder="MSMQ.Root.Folder" />
-      <FolderItem ElementID="MSMQ.TotalBytesInAllQueues.Performance.View" ID="MSMQ.TotalBytesInAllQueues.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
+      <FolderItem ElementID="MSMQ.TotalKBytesInAllQueues.Performance.View" ID="MSMQ.TotalKBytesInAllQueues.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
       <FolderItem ElementID="MSMQ.TotalMessagesInAllQueues.Performance.View" ID="MSMQ.TotalMessagesInAllQueues.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
       <FolderItem ElementID="MSMQ.Triggers.State.View" ID="MSMQ.Triggers.State.View.FolderItem" Folder="MSMQ.Root.Folder" />
       <FolderItem ElementID="MSMQ.All.Performance.View" ID="MSMQ.All.Performance.View.FolderItem" Folder="MSMQ.PerformanceViews.Folder" />
@@ -8242,15 +8359,17 @@ End Class</ScriptBody>
     </FolderItems>
     <StringResources>
       <StringResource ID="MSMQ.Server.ProcessPercentProcessorTime.Monitor.AlertMessage" />
-      <StringResource ID="MSMQ.Server.ProcessPrivateBytes.Monitor.AlertMessage" />	  
+      <StringResource ID="MSMQ.Server.ProcessPrivateMBytes.Monitor.AlertMessage" />	  
       <StringResource ID="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Server.OutgoingMessagesSec.Monitor.AlertMessage" />
-      <StringResource ID="MSMQ.Server.TotalBytesInAllQueues.Monitor.AlertMessage" />	  
+      <StringResource ID="MSMQ.Server.TotalKBytesInAllQueues.Monitor.AlertMessage" />	  
       <StringResource ID="MSMQ.Server.TotalMessagesInAllQueues.Monitor.AlertMessage" />
+	  <StringResource ID="MSMQ.Queue.QueuePercentUsed.Monitor.AlertMessage" />
+	  <StringResource ID="MSMQ.Queue.JournalPercentUsed.Monitor.AlertMessage" />	  
 	  <StringResource ID="MSMQ.Queue.MessagesInQueue.Monitor.AlertMessage" />
-      <StringResource ID="MSMQ.Queue.BytesInQueue.Monitor.AlertMessage" />
+      <StringResource ID="MSMQ.Queue.KBytesInQueue.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Queue.MessagesInJournalQueue.Monitor.AlertMessage" />
-      <StringResource ID="MSMQ.Queue.BytesInJournalQueue.Monitor.AlertMessage" />
+      <StringResource ID="MSMQ.Queue.KBytesInJournalQueue.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Service.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Triggers.Service.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Rule.Alert.Event2199.AlertMessage" />
@@ -8352,8 +8471,46 @@ End Class</ScriptBody>
       <DisplayStrings>
         <DisplayString ElementID="MSMQ">
           <Name>MSMQ Management Pack</Name>
-          <Description>Microsoft Message Queuing. This Management Pack will discover and monitor MSMQ.</Description>
+          <Description>MSMQ MP for Windows Server 2012 and Later.  This Management Pack will discover and monitor Microsoft Message Queuing Version 6 and later.</Description>
         </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor">
+          <Name>MSMQ Queue Percent Used Monitor</Name>
+          <Description></Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor.AlertMessage">
+          <Name>MSMQ Queue Percent Used exceeds threshold</Name>
+          <Description>The current Queue Percent Used is above the threshold.
+Queue Percent Used: {0}
+</Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor" SubElementID="Error">
+          <Name>Error</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor" SubElementID="Success">
+          <Name>Success</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor" SubElementID="Warning">
+          <Name>Warning</Name>
+        </DisplayString>		
+        <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor">
+          <Name>MSMQ Journal Percent Used Monitor</Name>
+          <Description></Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor.AlertMessage">
+          <Name>MSMQ Journal Percent Used exceeds threshold</Name>
+          <Description>The current Journal Percent Used is above the threshold.
+Journal Percent Used: {0}
+</Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor" SubElementID="Error">
+          <Name>Error</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor" SubElementID="Success">
+          <Name>Success</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor" SubElementID="Warning">
+          <Name>Warning</Name>
+        </DisplayString>		
         <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor">
           <Name>MSMQ Server Process Percent ProcessorTime Monitor</Name>
           <Description></Description>
@@ -8373,23 +8530,23 @@ CPU Value of all processes: {0}
         <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor" SubElementID="Warning">
           <Name>Warning</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor">
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor">
           <Name>MSMQ Server Process Private MBytes Monitor</Name>
           <Description></Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor.AlertMessage">
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor.AlertMessage">
           <Name>MSMQ Server Process Private MBytes exceeds threshold</Name>
           <Description>The current Process Private MBytes is above the threshold.
 Value in MB of all processes: {0}
 </Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor" SubElementID="Error">
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor" SubElementID="Error">
           <Name>Error</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor" SubElementID="Success">
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor" SubElementID="Success">
           <Name>Success</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.Monitor" SubElementID="Warning">
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor" SubElementID="Warning">
           <Name>Warning</Name>
         </DisplayString>		
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.Monitor">
@@ -8411,23 +8568,23 @@ Value: {0}
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.Monitor" SubElementID="Warning">
           <Name>Warning</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.TotalBytesInAllQueues.Monitor">
-          <Name>MSMQ Server Total Bytes In All Queues Monitor</Name>
+        <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor">
+          <Name>MSMQ Server Total KBytes In All Queues Monitor</Name>
           <Description></Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.TotalBytesInAllQueues.Monitor.AlertMessage">
-          <Name>MSMQ Server Total Bytes In All Queues exceeds threshold</Name>
-          <Description>The current Total Bytes In All Queues is above the threshold.
+        <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor.AlertMessage">
+          <Name>MSMQ Server Total KBytes In All Queues exceeds threshold</Name>
+          <Description>The current Total KBytes In All Queues is above the threshold.
 Value: {0}
 </Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.TotalBytesInAllQueues.Monitor" SubElementID="Error">
+        <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor" SubElementID="Error">
           <Name>Error</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.TotalBytesInAllQueues.Monitor" SubElementID="Success">
+        <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor" SubElementID="Success">
           <Name>Success</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.TotalBytesInAllQueues.Monitor" SubElementID="Warning">
+        <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor" SubElementID="Warning">
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.OutgoingMessagesSec.Monitor">
@@ -8475,55 +8632,61 @@ Value: {0}
         <DisplayString ElementID="MSMQ.All.Performance.View">
           <Name>All Performance</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInJournalQueue.Monitor">
-          <Name>MSMQ Bytes In Journal Queue Monitor</Name>
-          <Description>Monitor the number of Bytes in the Journal queue against a threshold.</Description>
+        <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor">
+          <Name>MSMQ KBytes In Journal Queue Monitor</Name>
+          <Description>Monitor the number of KBytes in the Journal queue against a threshold.</Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInJournalQueue.Monitor.AlertMessage">
-          <Name>MSMQ Bytes In Journal Queue exceeds threshold</Name>
-          <Description>The current Bytes In Journal Queue is above the threshold.
+        <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor.AlertMessage">
+          <Name>MSMQ KBytes In Journal Queue exceeds threshold</Name>
+          <Description>The current KBytes In Journal Queue is above the threshold.
 Queue Name: {0}
-Bytes In Journal Queue: {1}</Description>
+KBytes In Journal Queue: {1}</Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInJournalQueue.Monitor" SubElementID="Error">
+        <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor" SubElementID="Error">
           <Name>Error</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInJournalQueue.Monitor" SubElementID="Success">
+        <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor" SubElementID="Success">
           <Name>Success</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInJournalQueue.Monitor" SubElementID="Warning">
+        <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor" SubElementID="Warning">
           <Name>Warning</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInJournalQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - Bytes In Journal Queue PerformanceCollection Rule</Name>
+        <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.PerformanceCollection.Rule">
+          <Name>MSMQ - KBytes In Journal Queue PerformanceCollection Rule</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInQueue.Monitor">
-          <Name>MSMQ Bytes In Queue Monitor</Name>
-          <Description>Monitor the number of bytes in the queue against a threshold.</Description>
+        <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.PerformanceCollection.Rule">
+          <Name>MSMQ - Queue Percent Used PerformanceCollection Rule</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInQueue.Monitor.AlertMessage">
-          <Name>MSMQ Bytes In Queue exceeds threshold</Name>
-          <Description>The current Bytes In Queue is above the threshold.
+        <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.PerformanceCollection.Rule">
+          <Name>MSMQ - Journal Percent Used PerformanceCollection Rule</Name>
+        </DisplayString>		
+        <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor">
+          <Name>MSMQ KBytes In Queue Monitor</Name>
+          <Description>Monitor the number of KBytes in the queue against a threshold.</Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor.AlertMessage">
+          <Name>MSMQ KBytes In Queue exceeds threshold</Name>
+          <Description>The current KBytes In Queue is above the threshold.
 Queue Name: {0}
-Bytes In Queue: {1}</Description>
+KBytes In Queue: {1}</Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInQueue.Monitor" SubElementID="Error">
+        <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor" SubElementID="Error">
           <Name>Error</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInQueue.Monitor" SubElementID="Success">
+        <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor" SubElementID="Success">
           <Name>Success</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInQueue.Monitor" SubElementID="Warning">
+        <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor" SubElementID="Warning">
           <Name>Warning</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.BytesInQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - Bytes In Queue PerformanceCollection Rule</Name>
+        <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.PerformanceCollection.Rule">
+          <Name>MSMQ - KBytes In Queue PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.PerformanceCollection.Rule">
           <Name>MSMQ - Server Process Percent Processor Time PerformanceCollection Rule</Name>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.ProcessPrivateBytes.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Process Private Bytes PerformanceCollection Rule</Name>
+        <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.PerformanceCollection.Rule">
+          <Name>MSMQ - Server Process Private MBytes PerformanceCollection Rule</Name>
         </DisplayString>		
         <DisplayString ElementID="MSMQ.Client.Discovery">
           <Name>Discover MSMQ Clients</Name>
@@ -8539,23 +8702,23 @@ Bytes In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.MessagesInDeadLetterQueue.Performance.View">
           <Name>Messages in Dead Letter Queue</Name>
-          <Description>Graph showing Dead Letter Queue Bytes counter for all Message Queuing Servers</Description>
+          <Description></Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.BytesInDeadLetterQueue.Performance.View">
-          <Name>Bytes In Dead Letter Queue</Name>
-          <Description>Graph showing Dead Letter Queue Bytes counter for all Message Queuing Servers</Description>
+        <DisplayString ElementID="MSMQ.KBytesInDeadLetterQueue.Performance.View">
+          <Name>KBytes In Dead Letter Queue</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.GetQueueStats.Task">
           <Name>Get Queue Statistics</Name>
           <Description>Gets the real time statistics from the queue selected.</Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.BytesInJournalQueue.Performance.View">
-          <Name>Bytes In Journal Queue</Name>
-          <Description>Graph showing Bytes in Journal Queue counter for all queues</Description>
+        <DisplayString ElementID="MSMQ.KBytesInJournalQueue.Performance.View">
+          <Name>KBytes In Journal Queue</Name>
+          <Description></Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.BytesInQueue.Performance.View">
-          <Name>Bytes In Queue</Name>
-          <Description>Graph showing Bytes in Queue counter for all queues</Description>
+        <DisplayString ElementID="MSMQ.KBytesInQueue.Performance.View">
+          <Name>KBytes In Queue</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInJournalQueue.Monitor">
           <Name>MSMQ Messages In Journal Queue Monitor</Name>
@@ -8578,7 +8741,7 @@ Messages In Journal Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.MessagesInJournalQueue.Performance.View">
           <Name>Messages In Journal Queue</Name>
-          <Description>Graph showing Messages in Journal Queue counter for all queues</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInJournalQueue.PerformanceCollection.Rule">
           <Name>MSMQ - Messages In Journal Queue PerformanceCollection Rule</Name>
@@ -8686,7 +8849,7 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.MessagesInQueue.Performance.View">
           <Name>Messages In Queue</Name>
-          <Description>Graph showing Messages in Queue counter for all queues</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue" SubElementID="PathName">
           <Name>Path Name</Name>
@@ -9491,8 +9654,8 @@ Messages In Queue: {1}</Description>
           <Name>The message could not be moved to deadletter queue. The deadletter queue needs to be transactional.</Name>
           <Description>Event Description: {0}</Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.BytesInDeadLetterQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - Bytes In Dead Letter Queue Performance Collection Rule</Name>
+        <DisplayString ElementID="MSMQ.Server.KBytesInDeadLetterQueue.PerformanceCollection.Rule">
+          <Name>MSMQ - KBytes In Dead Letter Queue Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.MessagesInDeadLetterQueue.PerformanceCollection.Rule">
           <Name>MSMQ - Messages In Dead Letter Queue PerformanceCollection Rule</Name>
@@ -9528,8 +9691,8 @@ Messages In Queue: {1}</Description>
           <Name>Servers</Name>
           <Description>State of each Message Queuing Server with its complete set of properties for columns.</Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.Server.TotalBytesInAllQueues.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Total bytes in all queues Performance Collection Rule</Name>
+        <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.PerformanceCollection.Rule">
+          <Name>MSMQ - Server Total Kbytes in all queues Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.PerformanceCollection.Rule">
           <Name>MSMQ - Server Total messages in all queues Performance Collection Rule</Name>
@@ -9616,13 +9779,13 @@ Messages In Queue: {1}</Description>
           <Name>Stop Service - Triggers</Name>
           <Description>Stops the MSMQ Triggers Service at the server.</Description>
         </DisplayString>
-        <DisplayString ElementID="MSMQ.TotalBytesInAllQueues.Performance.View">
-          <Name>Total Bytes In All Queues</Name>
-          <Description>Graph showing Total Bytes in All Queues counter for all Message Queuing Servers</Description>
+        <DisplayString ElementID="MSMQ.TotalKBytesInAllQueues.Performance.View">
+          <Name>Total KBytes In All Queues</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.TotalMessagesInAllQueues.Performance.View">
           <Name>Total Messages In All Queues</Name>
-          <Description>Graph showing Total Messages in All Queues counter for all MSMQ Servers</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Trigger">
           <Name>MSMQ Trigger</Name>
