@@ -12,6 +12,7 @@ Discovers and Monitors:
 * MSMQ Triggers
 * MSMQ Queues
 
+Key Monitoring Scenarios:
 * Messages in Queue
 * KB in Queue
 * Queue Percent Used
