@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.2</Version>
+      <Version>10.0.2.3</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -87,11 +87,6 @@
           <Property ID="ServiceName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
         </ClassType>
         <ClassType ID="MSMQ.ComputersAndWatchers.Group" Accessibility="Public" Abstract="false" Base="MSIL!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
-        <ClassType ID="MSMQ.Queue.NonTransactional.Group" Accessibility="Public" Abstract="false" Base="MSIL!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
-        <ClassType ID="MSMQ.Queue.Private.Group" Accessibility="Public" Abstract="false" Base="MSIL!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
-        <ClassType ID="MSMQ.Queue.Public.Group" Accessibility="Public" Abstract="false" Base="MSIL!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
-        <ClassType ID="MSMQ.Queue.Test.Group" Accessibility="Public" Abstract="false" Base="MSIL!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
-        <ClassType ID="MSMQ.Queue.Transactional.Group" Accessibility="Public" Abstract="false" Base="MSIL!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
       </ClassTypes>
       <RelationshipTypes>
         <RelationshipType ID="MSMQ.ServerHostsQueue.Relationship" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
@@ -1992,141 +1987,6 @@ End Class</ScriptBody>
           <WorkgroupServer>$Target/Property[Type="MSMQ.Server"]/Workgroup$</WorkgroupServer>
           <LogDetail>true</LogDetail>
           <TimeoutSeconds>300</TimeoutSeconds>
-        </DataSource>
-      </Discovery>
-      <Discovery ID="MSMQ.Queue.NonTransactional.Group.Discovery" Enabled="true" Target="MSMQ.Queue.NonTransactional.Group" ConfirmDelivery="false" Remotable="true" Priority="Normal">
-        <Category>Discovery</Category>
-        <DiscoveryTypes>
-          <DiscoveryRelationship TypeID="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities" />
-        </DiscoveryTypes>
-        <DataSource ID="GP" TypeID="SC!Microsoft.SystemCenter.GroupPopulator">
-          <RuleId>$MPElement$</RuleId>
-          <GroupInstanceId>$Target/Id$</GroupInstanceId>
-          <MembershipRules>
-            <MembershipRule>
-              <MonitoringClass>$MPElement[Name="MSMQ.Queue"]$</MonitoringClass>
-              <RelationshipClass>$MPElement[Name="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities"]$</RelationshipClass>
-              <Expression>
-                <SimpleExpression>
-                  <ValueExpression>
-                    <Property>$MPElement[Name="MSMQ.Queue"]/IsTransactional$</Property>
-                  </ValueExpression>
-                  <Operator>Equal</Operator>
-                  <ValueExpression>
-                    <Value>false</Value>
-                  </ValueExpression>
-                </SimpleExpression>
-              </Expression>
-            </MembershipRule>
-          </MembershipRules>
-        </DataSource>
-      </Discovery>
-      <Discovery ID="MSMQ.Queue.PrivateQueues.Group.Discovery" Enabled="true" Target="MSMQ.Queue.Private.Group" ConfirmDelivery="false" Remotable="true" Priority="Normal">
-        <Category>Discovery</Category>
-        <DiscoveryTypes>
-          <DiscoveryRelationship TypeID="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities" />
-        </DiscoveryTypes>
-        <DataSource ID="GroupPopulation" TypeID="SC!Microsoft.SystemCenter.GroupPopulator">
-          <RuleId>$MPElement$</RuleId>
-          <GroupInstanceId>$Target/Id$</GroupInstanceId>
-          <MembershipRules>
-            <MembershipRule>
-              <MonitoringClass>$MPElement[Name="MSMQ.Queue"]$</MonitoringClass>
-              <RelationshipClass>$MPElement[Name="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities"]$</RelationshipClass>
-              <Expression>
-                <SimpleExpression>
-                  <ValueExpression>
-                    <Property>$MPElement[Name="MSMQ.Queue"]/IsPublic$</Property>
-                  </ValueExpression>
-                  <Operator>Equal</Operator>
-                  <ValueExpression>
-                    <Value>false</Value>
-                  </ValueExpression>
-                </SimpleExpression>
-              </Expression>
-            </MembershipRule>
-          </MembershipRules>
-        </DataSource>
-      </Discovery>
-      <Discovery ID="MSMQ.Queue.PublicQueues.Group.Discovery" Enabled="true" Target="MSMQ.Queue.Public.Group" ConfirmDelivery="false" Remotable="true" Priority="Normal">
-        <Category>Discovery</Category>
-        <DiscoveryTypes>
-          <DiscoveryRelationship TypeID="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities" />
-        </DiscoveryTypes>
-        <DataSource ID="GroupPopulation" TypeID="SC!Microsoft.SystemCenter.GroupPopulator">
-          <RuleId>$MPElement$</RuleId>
-          <GroupInstanceId>$Target/Id$</GroupInstanceId>
-          <MembershipRules>
-            <MembershipRule>
-              <MonitoringClass>$MPElement[Name="MSMQ.Queue"]$</MonitoringClass>
-              <RelationshipClass>$MPElement[Name="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities"]$</RelationshipClass>
-              <Expression>
-                <SimpleExpression>
-                  <ValueExpression>
-                    <Property>$MPElement[Name="MSMQ.Queue"]/IsPublic$</Property>
-                  </ValueExpression>
-                  <Operator>Equal</Operator>
-                  <ValueExpression>
-                    <Value>true</Value>
-                  </ValueExpression>
-                </SimpleExpression>
-              </Expression>
-            </MembershipRule>
-          </MembershipRules>
-        </DataSource>
-      </Discovery>
-      <Discovery ID="MSMQ.Queue.TestQueues.Group.Discovery" Enabled="true" Target="MSMQ.Queue.Test.Group" ConfirmDelivery="false" Remotable="true" Priority="Normal">
-        <Category>Discovery</Category>
-        <DiscoveryTypes>
-          <DiscoveryRelationship TypeID="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities" />
-        </DiscoveryTypes>
-        <DataSource ID="GroupPopulation" TypeID="SC!Microsoft.SystemCenter.GroupPopulator">
-          <RuleId>$MPElement$</RuleId>
-          <GroupInstanceId>$Target/Id$</GroupInstanceId>
-          <MembershipRules>
-            <MembershipRule>
-              <MonitoringClass>$MPElement[Name="MSMQ.Queue"]$</MonitoringClass>
-              <RelationshipClass>$MPElement[Name="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities"]$</RelationshipClass>
-              <Expression>
-                <SimpleExpression>
-                  <ValueExpression>
-                    <Property>$MPElement[Name="MSMQ.Queue"]/IsTestQueue$</Property>
-                  </ValueExpression>
-                  <Operator>Equal</Operator>
-                  <ValueExpression>
-                    <Value>false</Value>
-                  </ValueExpression>
-                </SimpleExpression>
-              </Expression>
-            </MembershipRule>
-          </MembershipRules>
-        </DataSource>
-      </Discovery>
-      <Discovery ID="MSMQ.Queue.Transactional.Group.Discovery" Enabled="true" Target="MSMQ.Queue.Transactional.Group" ConfirmDelivery="false" Remotable="true" Priority="Normal">
-        <Category>Discovery</Category>
-        <DiscoveryTypes>
-          <DiscoveryRelationship TypeID="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities" />
-        </DiscoveryTypes>
-        <DataSource ID="GP" TypeID="SC!Microsoft.SystemCenter.GroupPopulator">
-          <RuleId>$MPElement$</RuleId>
-          <GroupInstanceId>$Target/Id$</GroupInstanceId>
-          <MembershipRules>
-            <MembershipRule>
-              <MonitoringClass>$MPElement[Name="MSMQ.Queue"]$</MonitoringClass>
-              <RelationshipClass>$MPElement[Name="MSIL!Microsoft.SystemCenter.InstanceGroupContainsEntities"]$</RelationshipClass>
-              <Expression>
-                <SimpleExpression>
-                  <ValueExpression>
-                    <Property>$MPElement[Name="MSMQ.Queue"]/IsTransactional$</Property>
-                  </ValueExpression>
-                  <Operator>Equal</Operator>
-                  <ValueExpression>
-                    <Value>true</Value>
-                  </ValueExpression>
-                </SimpleExpression>
-              </Expression>
-            </MembershipRule>
-          </MembershipRules>
         </DataSource>
       </Discovery>
       <Discovery ID="MSMQ.Seed.Discovery" Enabled="true" Target="Windows!Microsoft.Windows.Server.Computer" ConfirmDelivery="false" Remotable="true" Priority="Normal">
@@ -8362,7 +8222,7 @@ End Class</ScriptBody>
           <Description>MSMQ MP for Windows Server 2012 and Later.  This Management Pack will discover and monitor Microsoft Message Queuing Version 6 and later.</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor">
-          <Name>MSMQ Queue Percent Used Monitor</Name>
+          <Name>MSMQ Queue Percent Used Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor.AlertMessage">
@@ -8381,7 +8241,7 @@ Queue Percent Used: {0}
           <Name>Warning</Name>
         </DisplayString>		
         <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor">
-          <Name>MSMQ Journal Percent Used Monitor</Name>
+          <Name>MSMQ Journal Percent Used Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor.AlertMessage">
@@ -8400,7 +8260,7 @@ Journal Percent Used: {0}
           <Name>Warning</Name>
         </DisplayString>		
         <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor">
-          <Name>MSMQ Server Process Percent ProcessorTime Monitor</Name>
+          <Name>MSMQ Server Process Percent Processor Time Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor.AlertMessage">
@@ -8419,7 +8279,7 @@ CPU Value of all processes: {0}
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor">
-          <Name>MSMQ Server Process Private MBytes Monitor</Name>
+          <Name>MSMQ Server Process Private MBytes Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor.AlertMessage">
@@ -8438,7 +8298,7 @@ Value in MB of all processes: {0}
           <Name>Warning</Name>
         </DisplayString>		
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.Monitor">
-          <Name>MSMQ Server Total Messages In All Queues Monitor</Name>
+          <Name>MSMQ Server Total Messages In All Queues Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.Monitor.AlertMessage">
@@ -8457,7 +8317,7 @@ Value: {0}
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor">
-          <Name>MSMQ Server Total KBytes In All Queues Monitor</Name>
+          <Name>MSMQ Server Total KBytes In All Queues Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor.AlertMessage">
@@ -8476,7 +8336,7 @@ Value: {0}
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.OutgoingMessagesSec.Monitor">
-          <Name>MSMQ Server Outgoing Messages/sec Monitor</Name>
+          <Name>MSMQ Server Outgoing Messages/sec Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.OutgoingMessagesSec.Monitor.AlertMessage">
@@ -8495,7 +8355,7 @@ Value: {0}
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.IncomingMessagesSec.Monitor">
-          <Name>MSMQ Server Incoming Messages/sec Monitor</Name>
+          <Name>MSMQ Server Incoming Messages/sec Threshold Monitor</Name>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage">
@@ -8521,7 +8381,7 @@ Value: {0}
           <Name>All Performance</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor">
-          <Name>MSMQ KBytes In Journal Queue Monitor</Name>
+          <Name>MSMQ KBytes In Journal Queue Threshold Monitor</Name>
           <Description>Monitor the number of KBytes in the Journal queue against a threshold.</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor.AlertMessage">
@@ -8540,16 +8400,16 @@ KBytes In Journal Queue: {1}</Description>
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - KBytes In Journal Queue PerformanceCollection Rule</Name>
+          <Name>MSMQ KBytes In Journal Queue PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.PerformanceCollection.Rule">
-          <Name>MSMQ - Queue Percent Used PerformanceCollection Rule</Name>
+          <Name>MSMQ Queue Percent Used PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.PerformanceCollection.Rule">
-          <Name>MSMQ - Journal Percent Used PerformanceCollection Rule</Name>
+          <Name>MSMQ Journal Percent Used PerformanceCollection Rule</Name>
         </DisplayString>		
         <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor">
-          <Name>MSMQ KBytes In Queue Monitor</Name>
+          <Name>MSMQ KBytes In Queue Threshold Monitor</Name>
           <Description>Monitor the number of KBytes in the queue against a threshold.</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor.AlertMessage">
@@ -8568,25 +8428,25 @@ KBytes In Queue: {1}</Description>
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - KBytes In Queue PerformanceCollection Rule</Name>
+          <Name>MSMQ KBytes In Queue PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Process Percent Processor Time PerformanceCollection Rule</Name>
+          <Name>MSMQ Server Process Percent Processor Time PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Process Private MBytes PerformanceCollection Rule</Name>
+          <Name>MSMQ Server Process Private MBytes PerformanceCollection Rule</Name>
         </DisplayString>		
         <DisplayString ElementID="MSMQ.Client.Discovery">
-          <Name>Discover MSMQ Clients</Name>
-          <Description>Discover MSMQ Clients</Description>
+          <Name>MSMQ Client Discovery</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.ComputersAndWatchers.Group">
-          <Name>MSMQ Servers - Group</Name>
-          <Description>Group of all MSMQ Servers</Description>
+          <Name>MSMQ Computers and Watchers Group</Name>
+          <Description>Group of all MSMQ Computers and Health Service Watchers</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.ComputersAndWatchers.Group.Discovery">
-          <Name>Populate MSMQ Servers - Group</Name>
-          <Description>This discovery rule populates the group 'MSMQ Servers - Group'</Description>
+          <Name>MSMQ Computers and Watchers Group Discovery</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.MessagesInDeadLetterQueue.Performance.View">
           <Name>Messages in Dead Letter Queue</Name>
@@ -8609,8 +8469,8 @@ KBytes In Queue: {1}</Description>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInJournalQueue.Monitor">
-          <Name>MSMQ Messages In Journal Queue Monitor</Name>
-          <Description>Monitor the number of messages in the Journal queue against a threshold.</Description>
+          <Name>MSMQ Messages In Journal Queue Threshold Monitor</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInJournalQueue.Monitor.AlertMessage">
           <Name>MSMQ Messages In Journal Queue exceeds threshold</Name>
@@ -8632,11 +8492,11 @@ Messages In Journal Queue: {1}</Description>
           <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInJournalQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - Messages In Journal Queue PerformanceCollection Rule</Name>
+          <Name>MSMQ Messages In Journal Queue PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInQueue.Monitor">
-          <Name>MSMQ Messages In Queue Monitor</Name>
-          <Description>Monitor the number of messages in the queue against a threshold.</Description>
+          <Name>MSMQ Messages In Queue Threshold Monitor</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInQueue.Monitor.AlertMessage">
           <Name>MSMQ Messages In Queue exceeds threshold</Name>
@@ -8654,62 +8514,22 @@ Messages In Queue: {1}</Description>
           <Name>Warning</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - Messages In Queue PerformanceCollection Rule</Name>
+          <Name>MSMQ Messages In Queue PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.PerformanceViews.Folder">
           <Name>Performance</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.PurgeQueue.Task">
           <Name>Purge Queue</Name>
-          <Description>Removes all messages in the Queue.</Description>
+          <Description>Removes all messages in the Queue</Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.Discovery">
+          <Name>MSMQ Queue Discovery</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue">
           <Name>MSMQ Queue</Name>
-          <Description>An MSMQ Queue</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.Discovery">
-          <Name>Discover MSMQ Queues</Name>
-          <Description>Discover MSMQ Queues</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.NonTransactional.Group">
-          <Name>MSMQ NonTransactional Queues - Group</Name>
-          <Description>Group of all MSMQ NonTransactional Queues</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.NonTransactional.Group.Discovery">
-          <Name>Populate MSMQ NonTransactional Queues Group</Name>
-          <Description>This Discovery populates the group "MSMQ NonTransactional Queues - Group".</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.Private.Group">
-          <Name>MSMQ Private Queues - Group</Name>
-          <Description>Group of all MSMQ Private Queues</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.PrivateQueues.Group.Discovery">
-          <Name>Populate MSMQ Private Queues Group</Name>
-          <Description>This discovery rule populates the group 'MSMQ Private Queues - Group'</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.Public.Group">
-          <Name>MSMQ Public Queues - Group</Name>
-          <Description>Group of all MSMQ Public Queues</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.PublicQueues.Group.Discovery">
-          <Name>Populate MSMQ Public Queues Group</Name>
-          <Description>This discovery rule populates the group 'MSMQ Public Queues - Group'</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.Test.Group">
-          <Name>MSMQ Test Queues Group</Name>
-          <Description>Group of all MSMQ Test Queues</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.TestQueues.Group.Discovery">
-          <Name>Populate MSMQ Test Queues - Group</Name>
-          <Description>This discovery rule populates the group 'MSMQ Test Queues - Group'</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.Transactional.Group">
-          <Name>MSMQ Transactional Queues - Group</Name>
-          <Description>Group of all MSMQ Transactional Queues</Description>
-        </DisplayString>
-        <DisplayString ElementID="MSMQ.Queue.Transactional.Group.Discovery">
-          <Name>Populate MSMQ Transactional Queues - Group</Name>
-          <Description>This discovery populates the group 'MSMQ Transactional Queues - Group'</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue" SubElementID="ADsPath">
           <Name>ADsPath</Name>
@@ -8750,15 +8570,15 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queues.State.View">
           <Name>Queues</Name>
-          <Description>State of all queues with its complete set of properties for columns.</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.QueueToServer.Availability.Rollup.Monitor">
-          <Name>MSMQ Queues Availability Health Rollup Monitor</Name>
-          <Description>MSMQ Queue Health Rollup</Description>
+          <Name>MSMQ Queue to Server Availability Rollup Monitor</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.QueueToServer.Performance.Rollup.Monitor">
-          <Name>MSMQ Queues Performance Health Rollup Monitor</Name>
-          <Description>MSMQ Queue Health Rollup</Description>
+          <Name>MSMQ Queue to Server Performance Rollup Monitor</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Root.Folder">
           <Name>MSMQ</Name>
@@ -9543,10 +9363,10 @@ Messages In Queue: {1}</Description>
           <Description>Event Description: {0}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.KBytesInDeadLetterQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - KBytes In Dead Letter Queue Performance Collection Rule</Name>
+          <Name>MSMQ KBytes In Dead Letter Queue Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.MessagesInDeadLetterQueue.PerformanceCollection.Rule">
-          <Name>MSMQ - Messages In Dead Letter Queue PerformanceCollection Rule</Name>
+          <Name>MSMQ Messages In Dead Letter Queue PerformanceCollection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.RunAsProfile">
           <Name>MSMQ Queue RunAs Profile</Name>
@@ -9560,30 +9380,30 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server">
           <Name>MSMQ Server</Name>
-          <Description>A server where the MSMQ service is present.</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.Discovery">
-          <Name>Discover MSMQ Servers</Name>
-          <Description>Discover MSMQ Servers</Description>
+          <Name>MSMQ Server Discovery</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.IncomingMessagesSec.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Incoming Messages/sec Performance Collection Rule</Name>
+          <Name>MSMQ Server Incoming Messages/sec Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.OutgoingMessagesSec.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Outgoing Messages/sec Performance Collection Rule</Name>
+          <Name>MSMQ Server Outgoing Messages/sec Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.Sessions.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Sessions Performance Collection Rule</Name>
+          <Name>MSMQ Server Sessions Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.State.View">
           <Name>Servers</Name>
-          <Description>State of each Message Queuing Server with its complete set of properties for columns.</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Total Kbytes in all queues Performance Collection Rule</Name>
+          <Name>MSMQ Server Total Kbytes in all queues Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.PerformanceCollection.Rule">
-          <Name>MSMQ - Server Total messages in all queues Performance Collection Rule</Name>
+          <Name>MSMQ Server Total messages in all queues Performance Collection Rule</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server" SubElementID="ClusterResourceName">
           <Name>Cluster Resource Name</Name>
@@ -9592,12 +9412,12 @@ Messages In Queue: {1}</Description>
           <Name>Dependent Clients</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.ServerHostsQueue.Relationship">
-          <Name>MSMQ Server Hosts Queue</Name>
-          <Description>MSMQ Server Hosts Queue</Description>
+          <Name>MSMQ Server Hosts Queue Relationship</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.ServerHostsTriggers.Relationship">
-          <Name>MSMQ Server Hosts Triggers</Name>
-          <Description>MSMQ Server Hosts Triggers</Description>
+          <Name>MSMQ Server Hosts Trigger Relationship</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server" SubElementID="IsClustered">
           <Name>Clustered</Name>
@@ -9637,11 +9457,11 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Service.Monitor">
           <Name>MSMQ Service Monitor</Name>
-          <Description>Message Queuing Service State</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Service.Monitor.AlertMessage">
           <Name>The MSMQ Service is not running</Name>
-          <Description>The MSMQ Service is not running.</Description>
+          <Description>The MSMQ Service is not running</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Service.Monitor" SubElementID="NotRunning">
           <Name>Not Running</Name>
@@ -9657,15 +9477,15 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.StartService.Triggers.Task">
           <Name>Start Service - Triggers</Name>
-          <Description>Starts the MSMQ Triggers Service at the server</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.StopService.Task">
           <Name>Stop Service</Name>
-          <Description>Stops the MSMQ Service at the server.</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.StopService.Triggers.Task">
           <Name>Stop Service - Triggers</Name>
-          <Description>Stops the MSMQ Triggers Service at the server.</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.TotalKBytesInAllQueues.Performance.View">
           <Name>Total KBytes In All Queues</Name>
@@ -9677,7 +9497,7 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Trigger">
           <Name>MSMQ Trigger</Name>
-          <Description>A server where the MSMQTriggers service is present.</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Triggers.Service.Monitor">
           <Name>MSMQ Triggers Service Monitor</Name>
@@ -9685,7 +9505,7 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Triggers.Service.Monitor.AlertMessage">
           <Name>The MSMQ Triggers Service is stopped.</Name>
-          <Description>The MSMQ Triggers Service is stopped.</Description>
+          <Description>The MSMQ Triggers Service is stopped</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Triggers.Service.Monitor" SubElementID="NotRunning">
           <Name>Not Running</Name>
@@ -9697,18 +9517,18 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Triggers.State.View">
           <Name>Triggers</Name>
-          <Description>State of each Message Queuing Triggers Service.</Description>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Trigger" SubElementID="ServiceName">
           <Name>ServiceName</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.TriggerToServer.Availability.Rollup.Monitor">
-          <Name>MSMQ Triggers Availability Health Rollup Monitor</Name>
-          <Description>Triggers Health Rollup</Description>
+          <Name>MSMQ Trigger to Server Availability Rollup Monitor</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.TriggerToServer.Performance.Rollup.Monitor">
-          <Name>MSMQ Triggers Performance Health Rollup Monitor</Name>
-          <Description>Triggers Health Rollup</Description>
+          <Name>MSMQ Trigger to Server Performance Rollup Monitor</Name>
+          <Description></Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.TrimJournalQueue.Task">
           <Name>Trim Journal Queue</Name>
