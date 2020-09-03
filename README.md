@@ -1,8 +1,8 @@
-# MSMQ 10.0.2.0
+# MSMQ 10.0.2.2
 
-## [Download Here][Download 10.0.2.0]
+## [Download Here][Download]
 
-[Download 10.0.2.0]: https://github.com/thekevinholman/MSMQ/releases/download/10.0.2.0/MSMQ.mp
+[Download]: https://github.com/thekevinholman/MSMQ/releases/download/10.0.2.2/MSMQ.mp
 
 ###MSMQ Management Pack to Monitor Microsoft Message Queuing.  This MP supports MSMQ on Windows Server 2012 and later.
 
