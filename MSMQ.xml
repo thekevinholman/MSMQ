@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.0</Version>
+      <Version>10.0.2.1</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -133,7 +133,7 @@
 #  MSMQ Server Role Discovery
 #
 #  Author: Kevin Holman
-#  v1.1
+#  v1.2
 #=================================================================================
 param($SourceId,$ManagedEntityId,[string]$ComputerName,[string]$IsVirtualNode,[string]$MGName,[string]$DebugLogging)
 
@@ -155,7 +155,6 @@ param($SourceId,$ManagedEntityId,[string]$ComputerName,[string]$IsVirtualNode,[s
 # ScriptName should be the same as the ID of the module that the script is contained in
 $ScriptName = "MSMQ.Server.Discovery.DS.ps1"
 $EventID = "14100"
-$DLOG = $DebugLogging
 #=================================================================================
 
 
@@ -168,7 +167,7 @@ $whoami = whoami
 # Load MOMScript API
 $momapi = New-Object -comObject MOM.ScriptAPI
 #Log script event that we are starting task
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting. `nRunning as ($whoami). `nComputerName: ($ComputerName). `nIsVirtualNode: ($IsVirtualNode). `nMGName: ($MGName). `nDebugLogging: ($DebugLogging).")
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting. `nRunning as ($whoami). `nComputerName: ($ComputerName). `nIsVirtualNode: ($IsVirtualNode). `nMGName: ($MGName).")
 #=================================================================================
 
 
@@ -253,6 +252,7 @@ IF ($IsVirtualNode -eq "True")
         $instance.AddProperty("$MPElement[Name='MSMQ.Server']/TransactionLoggerFolder$", $StoreXactLogPath)
         $instance.AddProperty("$MPElement[Name='MSMQ.Server']/IsClustered$", $true)
         $instance.AddProperty("$MPElement[Name='MSMQ.Server']/ClusterResourceName$", $MQClusterServiceName)
+		$instance.AddProperty("$MPElement[Name='MSMQ.Server']/Version$", $Version)
         $DiscoveryData.AddInstance($instance)
 
         $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nDiscovering MSMQ Instance: `nComputerName: ($ComputerName). `nServiceName: ($ServiceName).")
@@ -346,9 +346,10 @@ ELSE
       $instance.AddProperty("$MPElement[Name='MSMQ.Server']/MessageLoggerFolder$", $MessageLoggerFolder)
       $instance.AddProperty("$MPElement[Name='MSMQ.Server']/TransactionLoggerFolder$", $StoreXactLogPath)
       $instance.AddProperty("$MPElement[Name='MSMQ.Server']/IsClustered$", $false)
+      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Version$", $Version)	  
       $DiscoveryData.AddInstance($instance)
 
-      $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nDiscovering MSMQ Instance: `nComputerName: ($ComputerName). `nServiceName: ($ServiceName).")
+      $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nDiscovering MSMQ Instance: `nComputerName: ($ComputerName). `nServiceName: ($ServiceName). `nVersion: ($Version). `nWorkGroup: ($Workgroup). `nMessageFilesFolder: ($StorePersistentPath).")
 
       #Discover Triggers
       $MQTriggers = gwmi -Query "SELECT * FROM Win32_Service WHERE Name = 'MSMQTriggers'"
@@ -8127,202 +8128,89 @@ End Class</ScriptBody>
       </View>
       <View ID="MSMQ.Queues.State.View" Accessibility="Public" Enabled="true" Target="MSMQ.Queue" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
         <Category>Operations</Category>
-        <Criteria>
-          <InMaintenanceMode>false</InMaintenanceMode>
-        </Criteria>
+        <Criteria />
         <Presentation>
-          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+          <ColumnInfo Index="0" SortIndex="-1" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
             <Name>State</Name>
-            <Id>MSMQ.Queue-*-52d45bc5-7b9e-c940-7368-ae9db44d7ed3-*-Health</Id>
+            <Id>MSMQ.Queue</Id>
           </ColumnInfo>
-          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+          <ColumnInfo Index="1" SortIndex="-1" Width="22" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Maintenance Mode</Name>
             <Id>InMaintenanceMode</Id>
           </ColumnInfo>
-          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
-            <Name>Name</Name>
-            <Id>Name</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
-            <Name>Path</Name>
-            <Id>Path</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+          <ColumnInfo Index="2" SortIndex="-1" Width="150" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Display Name</Name>
-            <Id>System.Entity/DisplayName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Path Name</Name>
-            <Id>MSMQ.Queue/PathName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Test Queue</Name>
-            <Id>MSMQ.Queue/IsTestQueue</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Format Name</Name>
-            <Id>MSMQ.Queue/FormatName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="8" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Transactional</Name>
-            <Id>MSMQ.Queue/IsTransactional</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="9" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Public</Name>
-            <Id>MSMQ.Queue/IsPublic</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="10" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>ADsPath</Name>
-            <Id>MSMQ.Queue/ADsPath</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="11" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Id>DisplayName</Id>
+          </ColumnInfo>	
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Label</Name>
-            <Id>MSMQ.Queue/Label</Id>
+            <Id>Label</Id>
           </ColumnInfo>
-          <ColumnInfo Index="12" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Privilege Level</Name>
-            <Id>MSMQ.Queue/PrivilegeLevel</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="13" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Quota</Name>
-            <Id>MSMQ.Queue/Quota</Id>
+            <Id>Quota</Id>
           </ColumnInfo>
-          <ColumnInfo Index="14" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Journal Enabled</Name>
-            <Id>MSMQ.Queue/JournalEnabled</Id>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>JournalQuota</Name>
+            <Id>JournalQuota</Id>
           </ColumnInfo>
-          <ColumnInfo Index="15" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Journal Quota</Name>
-            <Id>MSMQ.Queue/JournalQuota</Id>
-          </ColumnInfo>
-        </Presentation>
-        <Target />
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>IsTransactional</Name>
+            <Id>IsTransactional</Id>
+          </ColumnInfo>			  
+        </Presentation>		
       </View>
       <View ID="MSMQ.Server.State.View" Accessibility="Public" Enabled="true" Target="MSMQ.Server" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
         <Category>Operations</Category>
-        <Criteria>
-          <InMaintenanceMode>false</InMaintenanceMode>
-        </Criteria>
+        <Criteria />
         <Presentation>
-          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+          <ColumnInfo Index="0" SortIndex="-1" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>State</Name>
-            <Id>MSMQ.Server-*-1ec06773-d188-a4f9-cb21-45d9af394da0-*-Health</Id>
+            <Id>MSMQ.Server</Id>
           </ColumnInfo>
-          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+          <ColumnInfo Index="1" SortIndex="-1" Width="22" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Maintenance Mode</Name>
             <Id>InMaintenanceMode</Id>
           </ColumnInfo>
-          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
-            <Name>Name</Name>
-            <Id>Name</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Path</Name>
-            <Id>Path</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+          <ColumnInfo Index="2" SortIndex="-1" Width="150" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Display Name</Name>
-            <Id>System.Entity/DisplayName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
-            <Name>ServiceName</Name>
-            <Id>MSMQ.Server/ServiceName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Source Name</Name>
-            <Id>MSMQ.Server/SourceName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Id>DisplayName</Id>
+          </ColumnInfo>	
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Version</Name>
-            <Id>MSMQ.Server/Version</Id>
+            <Id>Version</Id>
           </ColumnInfo>
-          <ColumnInfo Index="8" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Workgroup</Name>
-            <Id>MSMQ.Server/Workgroup</Id>
+          <ColumnInfo Index="4" SortIndex="-1" Width="150" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>ServiceName</Name>
+            <Id>ServiceName</Id>
           </ColumnInfo>
-          <ColumnInfo Index="9" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Dependent Clients</Name>
-            <Id>MSMQ.Server/DependentClients</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="10" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Routing</Name>
-            <Id>MSMQ.Server/Routing</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="11" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Quota</Name>
-            <Id>MSMQ.Server/Quota</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="12" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
-            <Name>Journal Quota</Name>
-            <Id>MSMQ.Server/JournalQuota</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="13" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Message Files Folder</Name>
-            <Id>MSMQ.Server/MessageFilesFolder</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="14" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Message Logger Folder</Name>
-            <Id>MSMQ.Server/MessageLoggerFolder</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="15" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Transaction Logger Folder</Name>
-            <Id>MSMQ.Server/TransactionLoggerFolder</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="16" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Site Name</Name>
-            <Id>MSMQ.Server/SiteName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="17" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="true" SortOrder="Ascending">
-            <Name>Clustered</Name>
-            <Id>MSMQ.Server/IsClustered</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="18" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
-            <Name>Cluster Resource Name</Name>
-            <Id>MSMQ.Server/ClusterResourceName</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="19" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>MSMQ Queue</Name>
-            <Id>MSMQ.Queue</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="20" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>MSMQ Trigger</Name>
-            <Id>MSMQ.Trigger</Id>
-          </ColumnInfo>
-        </Presentation>
-        <Target />
+          <ColumnInfo Index="5" SortIndex="-1" Width="80" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>IsClustered</Name>
+            <Id>IsClustered</Id>
+          </ColumnInfo>			  
+        </Presentation>		  
       </View>
       <View ID="MSMQ.Triggers.State.View" Accessibility="Public" Enabled="true" Target="MSMQ.Trigger" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
         <Category>Operations</Category>
-        <Criteria>
-          <InMaintenanceMode>false</InMaintenanceMode>
-        </Criteria>
+        <Criteria />
         <Presentation>
-          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+          <ColumnInfo Index="0" SortIndex="-1" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>State</Name>
-            <Id>MSMQ.Trigger-*-51fb0121-1da5-bc28-5ac0-fddddf2ea9e2-*-Health</Id>
+            <Id>MSMQ.Trigger</Id>
           </ColumnInfo>
-          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+          <ColumnInfo Index="1" SortIndex="-1" Width="22" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Maintenance Mode</Name>
             <Id>InMaintenanceMode</Id>
           </ColumnInfo>
-          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
-            <Name>Name</Name>
-            <Id>Name</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
-            <Name>Path</Name>
-            <Id>Path</Id>
-          </ColumnInfo>
-          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+          <ColumnInfo Index="2" SortIndex="-1" Width="150" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
             <Name>Display Name</Name>
-            <Id>System.Entity/DisplayName</Id>
+            <Id>DisplayName</Id>
+          </ColumnInfo>	
+          <ColumnInfo Index="3" SortIndex="-1" Width="200" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>ServiceName</Name>
+            <Id>ServiceName</Id>
           </ColumnInfo>
-          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
-            <Name>Service Name</Name>
-            <Id>MSMQ.Trigger/ServiceName</Id>
-          </ColumnInfo>
-        </Presentation>
-        <Target />
+        </Presentation>			
       </View>
       <View ID="MSMQ.All.Performance.View" Accessibility="Public" Enabled="true" Target="MSMQ.Server" TypeID="SC!Microsoft.SystemCenter.PerformanceViewType" Visible="true">
         <Category>Operations</Category>
