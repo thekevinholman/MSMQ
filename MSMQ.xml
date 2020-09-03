@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.1</Version>
+      <Version>10.0.2.2</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
