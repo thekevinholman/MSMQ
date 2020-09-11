@@ -2,13 +2,13 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.3</Version>
+      <Version>10.0.2.4</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
       <Reference Alias="SCDW">
         <ID>Microsoft.SystemCenter.DataWarehouse.Library</ID>
-        <Version>10.19.10050.0</Version>
+        <Version>7.1.10226.0</Version>
         <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
       </Reference>
       <Reference Alias="Windows">
@@ -18,7 +18,7 @@
       </Reference>
       <Reference Alias="Perf">
         <ID>System.Performance.Library</ID>
-        <Version>7.0.8443.6</Version>
+        <Version>7.0.8433.0</Version>
         <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
       </Reference>
       <Reference Alias="MSIL">
@@ -28,7 +28,7 @@
       </Reference>
       <Reference Alias="MSDRL">
         <ID>Microsoft.SystemCenter.DataWarehouse.Report.Library</ID>
-        <Version>10.19.10407.0</Version>
+        <Version>7.1.10226.0</Version>
         <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
       </Reference>
       <Reference Alias="System">
@@ -38,12 +38,12 @@
       </Reference>
       <Reference Alias="SC">
         <ID>Microsoft.SystemCenter.Library</ID>
-        <Version>7.0.8448.6</Version>
+        <Version>7.0.8433.0</Version>
         <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
       </Reference>
       <Reference Alias="Health">
         <ID>System.Health.Library</ID>
-        <Version>7.0.8443.6</Version>
+        <Version>7.0.8433.0</Version>
         <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
       </Reference>
     </References>
