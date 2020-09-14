@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.4</Version>
+      <Version>10.0.2.5</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -311,7 +311,7 @@ ELSE
       $MQS_DepClients = $false
       $Routing = $false
 
-     #Get registry values for discovery properties
+      #Get registry values for discovery properties
       $Workgroup = (Get-ItemProperty ($ReginstanceParam)).Workgroup
       $StorePersistentPath = (Get-ItemProperty ($ReginstanceParam)).StorePersistentPath
       $MessageLoggerFolder = (Get-ItemProperty ($ReginstanceParam)).StoreLogPath
@@ -737,8 +737,8 @@ $TotalMessagesInAllQueues = (Get-Counter "\MSMQ Service\Total messages in all qu
 $TotalBytesInAllQueues = (Get-Counter "\MSMQ Service\Total bytes in all queues").CounterSamples.CookedValue
 $TotalKBytesInAllQueues = [math]::Round(($TotalBytesInAllQueues / 1000),0)
 $Sessions = (Get-Counter "\MSMQ Service\Sessions").CounterSamples.CookedValue
-$IncomingMessagesSec = (Get-Counter "\MSMQ Service\Incoming Messages/sec").CounterSamples.CookedValue
-$OutgoingMessagesSec = (Get-Counter "\MSMQ Service\Outgoing Messages/sec").CounterSamples.CookedValue
+$IncomingMessagesSec = [math]::Round(((Get-Counter "\MSMQ Service\Incoming Messages/sec").CounterSamples.CookedValue),0)
+$OutgoingMessagesSec = [math]::Round(((Get-Counter "\MSMQ Service\Outgoing Messages/sec").CounterSamples.CookedValue),0)
 $MessagesInDeadLetterQueue = (Get-Counter "\MSMQ Queue(Computer Queues)\Messages in Queue").CounterSamples.CookedValue
 $BytesInDeadLetterQueue = (Get-Counter "\MSMQ Queue(Computer Queues)\Bytes in Queue").CounterSamples.CookedValue
 $KBytesInDeadLetterQueue = [math]::Round(($BytesInDeadLetterQueue / 1000),0)
