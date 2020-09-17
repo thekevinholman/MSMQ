@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.5</Version>
+      <Version>10.0.2.7</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -108,11 +108,13 @@
           <xsd:element minOccurs="1" name="IntervalSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" name="ComputerName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" name="IsVirtualNode" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="DiscoverClusterNodes" type="xsd:boolean" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />		  
           <xsd:element minOccurs="1" name="DebugLogging" type="xsd:boolean" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="1" name="TimeoutSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
         </Configuration>
         <OverrideableParameters>
           <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="DiscoverClusterNodes" Selector="$Config/DiscoverClusterNodes$" ParameterType="bool" />
           <OverrideableParameter ID="DebugLogging" Selector="$Config/DebugLogging$" ParameterType="bool" />
           <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
         </OverrideableParameters>
@@ -128,9 +130,9 @@
 #  MSMQ Server Role Discovery
 #
 #  Author: Kevin Holman
-#  v1.2
+#  v1.3
 #=================================================================================
-param($SourceId,$ManagedEntityId,[string]$ComputerName,[string]$IsVirtualNode,[string]$MGName,[string]$DebugLogging)
+param($SourceId,$ManagedEntityId,[string]$ComputerName,[string]$IsVirtualNode,[string]$MGName,[string]$DiscoverClusterNodes,[string]$DebugLogging)
 
 
 # Manual Testing section - put stuff here for manually testing script - typically parameters:
@@ -140,7 +142,8 @@ param($SourceId,$ManagedEntityId,[string]$ComputerName,[string]$IsVirtualNode,[s
 # $ComputerName = "computername.domain.com"
 # $IsVirtualNode = "True"
 # $MGName = "MGNAME"
-# $DebugLogging = $true
+# $DiscoverClusterNodes = "false"
+# $DebugLogging = "false"
 #=================================================================================
 
 
@@ -162,7 +165,7 @@ $whoami = whoami
 # Load MOMScript API
 $momapi = New-Object -comObject MOM.ScriptAPI
 #Log script event that we are starting task
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting. `nRunning as ($whoami). `nComputerName: ($ComputerName). `nIsVirtualNode: ($IsVirtualNode). `nMGName: ($MGName).")
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting. `nRunning as ($whoami). `nComputerName: ($ComputerName). `nIsVirtualNode: ($IsVirtualNode). `nMGName: ($MGName). `nDiscoverClusterNodes: ($DiscoverClusterNodes). `nDebugLogging:($DebugLogging)")
 #=================================================================================
 
 
@@ -175,6 +178,9 @@ $DiscoveryData = $momapi.CreateDiscoveryData(0,$SourceId,$ManagedEntityId)
 
 # Begin MAIN script section
 #=================================================================================
+IF ($DiscoverClusterNodes.ToUpper() -eq "TRUE"){[bool]$DiscoverClusterNodesBool = $true}
+IF ($DebugLogging.ToUpper() -eq "TRUE"){[bool]$DebugLog = $true}
+
 #Get the NetBIOS name from the FQDN ComputerName script parameter
 $NetBIOSName = ($ComputerName.Split("."))[0]
 
@@ -286,10 +292,13 @@ ELSE
 {
   #Assume this is not a cluster since IsVirtualNode = false
   #Check to see if this is a cluster node that hosts a MSMQ resource
-  $MSMQClResource = Get-ClusterResource | Where {$_.ResourceType -eq "MSMQ"} -ErrorAction SilentlyContinue
+  IF (!($DiscoverClusterNodesBool))
+  {
+    $MSMQClResource = Get-ClusterResource | Where {$_.ResourceType -eq "MSMQ"} -ErrorAction SilentlyContinue
+  }
   IF ($MSMQCLResource)
   {
-    #This is a cluster node that hosts a MSMQ resource.  Do not discover this as a MSMQ Server role.
+    #This is a cluster node that hosts a MSMQ resource and the override is set not to discover nodes.  Do not discover this as a MSMQ Server role.
   }
   ELSE
   {
@@ -380,9 +389,9 @@ $DiscoveryData
 #Log an event for script ending and total execution time.
 $EndTime = Get-Date
 $ScriptTime = ($EndTime - $StartTime).TotalSeconds
-$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRuntime: ($ScriptTime) seconds.")
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nComputerName: ($ComputerName). `nRuntime: ($ScriptTime) seconds.")
 #=================================================================================
-# End of script			
+# End of script
                 </ScriptBody>
                 <Parameters>
                   <Parameter>
@@ -405,6 +414,10 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRuntime: ($
                     <Name>MGName</Name>
                     <Value>$Target/ManagementGroup/Name$</Value>
                   </Parameter>
+                  <Parameter>
+                    <Name>DiscoverClusterNodes</Name>
+                    <Value>$Config/DiscoverClusterNodes$</Value>
+                  </Parameter>				  
                   <Parameter>
                     <Name>DebugLogging</Name>
                     <Value>$Config/DebugLogging$</Value>
@@ -1929,7 +1942,8 @@ End Class</ScriptBody>
           <IntervalSeconds>86403</IntervalSeconds>
           <ComputerName>$Target/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
           <IsVirtualNode>false</IsVirtualNode>
-          <DebugLogging>true</DebugLogging>
+          <DiscoverClusterNodes>false</DiscoverClusterNodes>
+          <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
         </DataSource>
       </Discovery>
@@ -2029,7 +2043,8 @@ End Class</ScriptBody>
           <IntervalSeconds>86399</IntervalSeconds>
           <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
           <IsVirtualNode>$Target/Property[Type="MSMQ.Seed"]/IsVirtualNode$</IsVirtualNode>
-          <DebugLogging>true</DebugLogging>
+          <DiscoverClusterNodes>false</DiscoverClusterNodes>
+          <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
         </DataSource>
       </Discovery>
@@ -9384,8 +9399,12 @@ Messages In Queue: {1}</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.Discovery">
           <Name>MSMQ Server Discovery</Name>
-          <Description></Description>
+          <Description>This script based discovery will run on MSMQ Seed instances and discover the instance and properties of the MSMQ Server role</Description>
         </DisplayString>
+        <DisplayString ElementID="MSMQ.Seed.Discovery">
+          <Name>MSMQ Seed Discovery</Name>
+          <Description>This discovery will find all Servers with the MSMQ feature installed via WMI query</Description>
+        </DisplayString>		
         <DisplayString ElementID="MSMQ.Server.IncomingMessagesSec.PerformanceCollection.Rule">
           <Name>MSMQ Server Incoming Messages/sec Performance Collection Rule</Name>
         </DisplayString>
