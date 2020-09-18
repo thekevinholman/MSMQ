@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.7</Version>
+      <Version>10.0.2.8</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -7487,6 +7487,13 @@ End Class</ScriptBody>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Property[@Name="ProcessesRunning"]$</AlertParameter3>
+            <AlertParameter4>$Data/Context/Property[@Name="Sessions"]$</AlertParameter4>
+            <AlertParameter5>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter6>
+            <AlertParameter7>$Data/Context/Property[@Name="IncomingMessagesSec"]$</AlertParameter7>
+            <AlertParameter8>$Data/Context/Property[@Name="OutgoingMessagesSec"]$</AlertParameter8>
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7513,6 +7520,13 @@ End Class</ScriptBody>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Property[@Name="ProcessesRunning"]$</AlertParameter3>
+            <AlertParameter4>$Data/Context/Property[@Name="Sessions"]$</AlertParameter4>
+            <AlertParameter5>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter6>
+            <AlertParameter7>$Data/Context/Property[@Name="IncomingMessagesSec"]$</AlertParameter7>
+            <AlertParameter8>$Data/Context/Property[@Name="OutgoingMessagesSec"]$</AlertParameter8>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7539,6 +7553,13 @@ End Class</ScriptBody>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="IncomingMessagesSec"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Property[@Name="ProcessesRunning"]$</AlertParameter3>
+            <AlertParameter4>$Data/Context/Property[@Name="Sessions"]$</AlertParameter4>
+            <AlertParameter5>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter6>
+            <AlertParameter7>$Data/Context/Property[@Name="IncomingMessagesSec"]$</AlertParameter7>
+            <AlertParameter8>$Data/Context/Property[@Name="OutgoingMessagesSec"]$</AlertParameter8>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7565,6 +7586,13 @@ End Class</ScriptBody>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="OutgoingMessagesSec"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Property[@Name="ProcessesRunning"]$</AlertParameter3>
+            <AlertParameter4>$Data/Context/Property[@Name="Sessions"]$</AlertParameter4>
+            <AlertParameter5>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter6>
+            <AlertParameter7>$Data/Context/Property[@Name="IncomingMessagesSec"]$</AlertParameter7>
+            <AlertParameter8>$Data/Context/Property[@Name="OutgoingMessagesSec"]$</AlertParameter8>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7591,6 +7619,13 @@ End Class</ScriptBody>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="TotalKBytesInAllQueues"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Property[@Name="ProcessesRunning"]$</AlertParameter3>
+            <AlertParameter4>$Data/Context/Property[@Name="Sessions"]$</AlertParameter4>
+            <AlertParameter5>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter6>
+            <AlertParameter7>$Data/Context/Property[@Name="IncomingMessagesSec"]$</AlertParameter7>
+            <AlertParameter8>$Data/Context/Property[@Name="OutgoingMessagesSec"]$</AlertParameter8>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7617,6 +7652,13 @@ End Class</ScriptBody>
           <AlertSeverity>MatchMonitorHealth</AlertSeverity>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="TotalMessagesInAllQueues"]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Property[@Name="ProcessesRunning"]$</AlertParameter3>
+            <AlertParameter4>$Data/Context/Property[@Name="Sessions"]$</AlertParameter4>
+            <AlertParameter5>$Data/Context/Property[@Name="CPUValue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="MemoryValueMB"]$</AlertParameter6>
+            <AlertParameter7>$Data/Context/Property[@Name="IncomingMessagesSec"]$</AlertParameter7>
+            <AlertParameter8>$Data/Context/Property[@Name="OutgoingMessagesSec"]$</AlertParameter8>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7644,6 +7686,13 @@ End Class</ScriptBody>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
             <AlertParameter2>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter2>
+			<AlertParameter3>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter3>
+			<AlertParameter4>$Data/Context/Property[@Name="Messages In Queue"]$</AlertParameter4>
+			<AlertParameter5>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter6>		
+			<AlertParameter7>$Data/Context/Property[@Name="Messages In Journal Queue"]$</AlertParameter7>
+			<AlertParameter8>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter8>
+			<AlertParameter9>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter9>
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7672,6 +7721,13 @@ End Class</ScriptBody>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
             <AlertParameter2>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter2>
+			<AlertParameter3>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter3>
+			<AlertParameter4>$Data/Context/Property[@Name="Messages In Queue"]$</AlertParameter4>
+			<AlertParameter5>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter6>		
+			<AlertParameter7>$Data/Context/Property[@Name="Messages In Journal Queue"]$</AlertParameter7>
+			<AlertParameter8>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter8>
+			<AlertParameter9>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter9>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7700,6 +7756,13 @@ End Class</ScriptBody>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
             <AlertParameter2>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter2>
+			<AlertParameter3>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter3>
+			<AlertParameter4>$Data/Context/Property[@Name="Messages In Queue"]$</AlertParameter4>
+			<AlertParameter5>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter6>		
+			<AlertParameter7>$Data/Context/Property[@Name="Messages In Journal Queue"]$</AlertParameter7>
+			<AlertParameter8>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter8>
+			<AlertParameter9>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter9>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7728,6 +7791,13 @@ End Class</ScriptBody>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
             <AlertParameter2>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter2>
+			<AlertParameter3>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter3>
+			<AlertParameter4>$Data/Context/Property[@Name="Messages In Queue"]$</AlertParameter4>
+			<AlertParameter5>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter6>		
+			<AlertParameter7>$Data/Context/Property[@Name="Messages In Journal Queue"]$</AlertParameter7>
+			<AlertParameter8>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter8>
+			<AlertParameter9>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter9>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7756,6 +7826,13 @@ End Class</ScriptBody>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
             <AlertParameter2>$Data/Context/Property[@Name="Messages In Journal Queue"]$</AlertParameter2>
+			<AlertParameter3>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter3>
+			<AlertParameter4>$Data/Context/Property[@Name="Messages In Queue"]$</AlertParameter4>
+			<AlertParameter5>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter6>		
+			<AlertParameter7>$Data/Context/Property[@Name="Messages In Journal Queue"]$</AlertParameter7>
+			<AlertParameter8>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter8>
+			<AlertParameter9>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter9>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -7784,6 +7861,13 @@ End Class</ScriptBody>
           <AlertParameters>
             <AlertParameter1>$Data/Context/Property[@Name="QueueName"]$</AlertParameter1>
             <AlertParameter2>$Data/Context/Property[@Name="Messages In Queue"]$</AlertParameter2>
+			<AlertParameter3>$Data/Context/Property[@Name="NetBIOSName"]$</AlertParameter3>
+			<AlertParameter4>$Data/Context/Property[@Name="Messages In Queue"]$</AlertParameter4>
+			<AlertParameter5>$Data/Context/Property[@Name="KBytes In Queue"]$</AlertParameter5>
+            <AlertParameter6>$Data/Context/Property[@Name="Queue Percent Used"]$</AlertParameter6>		
+			<AlertParameter7>$Data/Context/Property[@Name="Messages In Journal Queue"]$</AlertParameter7>
+			<AlertParameter8>$Data/Context/Property[@Name="KBytes In Journal Queue"]$</AlertParameter8>
+			<AlertParameter9>$Data/Context/Property[@Name="Journal Percent Used"]$</AlertParameter9>			
           </AlertParameters>
         </AlertSettings>
         <OperationalStates>
@@ -8243,7 +8327,16 @@ End Class</ScriptBody>
         <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor.AlertMessage">
           <Name>MSMQ Queue Percent Used exceeds threshold</Name>
           <Description>The current Queue Percent Used is above the threshold.
-Queue Percent Used: {0}
+Queue Name: {0}
+Queue Percent Used: {1}
+
+Additional Information:
+Server: {2}
+Messages In Queue: {3}
+KBytes In Queue: {4}
+Messages In Journal Queue: {6}
+KBytes In Journal Queue: {7}
+Journal Percent Used: {8}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.QueuePercentUsed.Monitor" SubElementID="Error">
@@ -8262,7 +8355,16 @@ Queue Percent Used: {0}
         <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor.AlertMessage">
           <Name>MSMQ Journal Percent Used exceeds threshold</Name>
           <Description>The current Journal Percent Used is above the threshold.
-Journal Percent Used: {0}
+Queue Name: {0}
+Journal Percent Used: {1}
+
+Additional Information:
+Server: {2}
+Messages In Queue: {3}
+KBytes In Queue: {4}
+Queue Percent Used: {5}
+Messages In Journal Queue: {6}
+KBytes In Journal Queue: {7}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.JournalPercentUsed.Monitor" SubElementID="Error">
@@ -8282,6 +8384,14 @@ Journal Percent Used: {0}
           <Name>MSMQ Server Process Percent Processor Time exceeds threshold</Name>
           <Description>The current Process Percent Processor Time is above the threshold.
 CPU Value of all processes: {0}
+
+Additional Information:
+Server: {1}
+MSMQ Process Count: {2}
+Sessions: {3}
+Memory in MB for processes: {5}
+Incoming Messages Sec: {6}
+Outgoing Messages Sec: {7}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPercentProcessorTime.Monitor" SubElementID="Error">
@@ -8300,7 +8410,15 @@ CPU Value of all processes: {0}
         <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor.AlertMessage">
           <Name>MSMQ Server Process Private MBytes exceeds threshold</Name>
           <Description>The current Process Private MBytes is above the threshold.
-Value in MB of all processes: {0}
+Memory in MB for processes: {0}
+
+Additional Information:
+Server: {1}
+MSMQ Process Count: {2}
+Sessions: {3}
+CPU Value of all processes: {4}
+Incoming Messages Sec: {6}
+Outgoing Messages Sec: {7}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.ProcessPrivateMBytes.Monitor" SubElementID="Error">
@@ -8319,7 +8437,16 @@ Value in MB of all processes: {0}
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.Monitor.AlertMessage">
           <Name>MSMQ Server Total Messages In All Queues exceeds threshold</Name>
           <Description>The current Total Messages In All Queues is above the threshold.
-Value: {0}
+Total Messages In All Queues: {0}
+
+Additional Information:
+Server: {1}
+MSMQ Process Count: {2}
+Sessions: {3}
+CPU Value of all processes: {4}
+Memory in MB for processes: {5}
+Incoming Messages Sec: {6}
+Outgoing Messages Sec: {7}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalMessagesInAllQueues.Monitor" SubElementID="Error">
@@ -8338,7 +8465,16 @@ Value: {0}
         <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor.AlertMessage">
           <Name>MSMQ Server Total KBytes In All Queues exceeds threshold</Name>
           <Description>The current Total KBytes In All Queues is above the threshold.
-Value: {0}
+Total KBytes In All Queues: {0}
+
+Additional Information:
+Server: {1}
+MSMQ Process Count: {2}
+Sessions: {3}
+CPU Value of all processes: {4}
+Memory in MB for processes: {5}
+Incoming Messages Sec: {6}
+Outgoing Messages Sec: {7}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.TotalKBytesInAllQueues.Monitor" SubElementID="Error">
@@ -8357,7 +8493,15 @@ Value: {0}
         <DisplayString ElementID="MSMQ.Server.OutgoingMessagesSec.Monitor.AlertMessage">
           <Name>MSMQ Server Outgoing Messages/sec exceeds threshold</Name>
           <Description>The current Outgoing Messages/sec is above the threshold.
-Value: {0}
+Outgoing Messages Sec: {0}
+
+Additional Information:
+Server: {1}
+MSMQ Process Count: {2}
+Sessions: {3}
+CPU Value of all processes: {4}
+Memory in MB for processes: {5}
+Incoming Messages Sec: {6}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.OutgoingMessagesSec.Monitor" SubElementID="Error">
@@ -8376,7 +8520,15 @@ Value: {0}
         <DisplayString ElementID="MSMQ.Server.IncomingMessagesSec.Monitor.AlertMessage">
           <Name>MSMQ Server Incoming Messages/sec exceeds threshold</Name>
           <Description>The current Incoming Messages/sec is above the threshold.
-Value: {0}
+Incoming Messages Sec: {0}
+
+Additional Information:
+Server: {1}
+MSMQ Process Count: {2}
+Sessions: {3}
+CPU Value of all processes: {4}
+Memory in MB for processes: {5}
+Outgoing Messages Sec: {7}
 </Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Server.IncomingMessagesSec.Monitor" SubElementID="Error">
@@ -8403,7 +8555,16 @@ Value: {0}
           <Name>MSMQ KBytes In Journal Queue exceeds threshold</Name>
           <Description>The current KBytes In Journal Queue is above the threshold.
 Queue Name: {0}
-KBytes In Journal Queue: {1}</Description>
+KBytes In Journal Queue: {1}
+
+Additional Information:
+Server: {2}
+Messages In Queue: {3}
+KBytes In Queue: {4}
+Queue Percent Used: {5}
+Messages In Journal Queue: {6}
+Journal Percent Used: {8}
+</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.KBytesInJournalQueue.Monitor" SubElementID="Error">
           <Name>Error</Name>
@@ -8431,7 +8592,16 @@ KBytes In Journal Queue: {1}</Description>
           <Name>MSMQ KBytes In Queue exceeds threshold</Name>
           <Description>The current KBytes In Queue is above the threshold.
 Queue Name: {0}
-KBytes In Queue: {1}</Description>
+KBytes In Queue: {1}
+
+Additional Information:
+Server: {2}
+Messages In Queue: {3}
+Queue Percent Used: {5}
+Messages In Journal Queue: {6}
+KBytes In Journal Queue: {7}
+Journal Percent Used: {8}
+</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.KBytesInQueue.Monitor" SubElementID="Error">
           <Name>Error</Name>
@@ -8491,7 +8661,16 @@ KBytes In Queue: {1}</Description>
           <Name>MSMQ Messages In Journal Queue exceeds threshold</Name>
           <Description>The current Messages In Journal Queue is above the threshold.
 Queue Name: {0}
-Messages In Journal Queue: {1}</Description>
+Messages In Journal Queue: {1}
+
+Additional Information:
+Server: {2}
+Messages In Queue: {3}
+KBytes In Queue: {4}
+Queue Percent Used: {5}
+KBytes In Journal Queue: {7}
+Journal Percent Used: {8}
+</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInJournalQueue.Monitor" SubElementID="Error">
           <Name>Error</Name>
@@ -8517,7 +8696,16 @@ Messages In Journal Queue: {1}</Description>
           <Name>MSMQ Messages In Queue exceeds threshold</Name>
           <Description>The current Messages In Queue is above the threshold.
 Queue Name: {0}
-Messages In Queue: {1}</Description>
+Messages In Queue: {1}
+
+Additional Information:
+Server: {2}
+KBytes In Queue: {4}
+Queue Percent Used: {5}
+Messages In Journal Queue: {6}
+KBytes In Journal Queue: {7}
+Journal Percent Used: {8}
+</Description>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue.MessagesInQueue.Monitor" SubElementID="Error">
           <Name>Error</Name>
