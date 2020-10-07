@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.2.8</Version>
+      <Version>10.0.3.0</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -71,6 +71,7 @@
           <Property ID="Workgroup" Type="bool" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
         </ClassType>
         <ClassType ID="MSMQ.Queue" Accessibility="Public" Abstract="false" Base="Windows!Microsoft.Windows.ApplicationComponent" Hosted="true" Singleton="false" Extension="false">
+          <Property ID="QueueName" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
           <Property ID="ADsPath" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
           <Property ID="FormatName" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
           <Property ID="IsPublic" Type="bool" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
@@ -927,27 +928,27 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nRunning as 
                 <SyncTime />
                 <ScriptName>MSMQ.Queue.Discovery.DS.vbs</ScriptName>
                 <Arguments>$MPElement$ $Target/Id$ "$Config/ComputerName$" "$Config/ServiceName$" "$Config/DiscoverPublic$" "$Config/DiscoverPrivate$" "$Config/WorkgroupServer$" "$Config/LogDetail$"</Arguments>
-                <ScriptBody>option explicit
+                <ScriptBody><![CDATA[option explicit
 SetLocale("en-us")
 
 Const SCRIPT_NAME = "MSMQ.Queue.Discovery.DS.vbs"
 
-Const EVENTNO_SCRIPT_STARTED			= 14110
-Const EVENTNO_SCRIPT_ENDED				= 14110
+Const EVENTNO_SCRIPT_STARTED		= 14110
+Const EVENTNO_SCRIPT_ENDED		= 14110
 Const EVENTNO_DISCOVER_PRIVATEQUEUES	= 14110
-Const EVENTNO_BYPASS_PRIVATEQUEUES		= 14110
-Const EVENTNO_DISCOVER_PUBLICQUEUES		= 14110
-Const EVENTNO_BYPASS_PUBLICQUEUES		= 14110
-Const EVENTNO_FOUND_QUEUE 				= 14110
+Const EVENTNO_BYPASS_PRIVATEQUEUES	= 14110
+Const EVENTNO_DISCOVER_PUBLICQUEUES	= 14110
+Const EVENTNO_BYPASS_PUBLICQUEUES	= 14110
+Const EVENTNO_FOUND_QUEUE 		= 14110
 Const EVENTNO_MSMQSERVICE_NOTRUNNING	= 14110
-Const EVENTNO_ERROR_ADLOOKUP			= 14110
+Const EVENTNO_ERROR_ADLOOKUP		= 14110
 Const EVENTNO_ERROR_COULDNOTOPENQUEUE	= 14110
 
 Const EVENT_LEVEL_ERROR = 1
 Const EVENT_LEVEL_WARNING = 2
 Const EVENT_LEVEL_INFO = 4
 
-Const HKEY_LOCAL_MACHINE = &amp;H80000002
+Const HKEY_LOCAL_MACHINE = &H80000002
 
 Const MSMQ_REGROOT = "SOFTWARE\Microsoft\Microsoft Operations Manager\3.0\Modules\MSMQ Management Pack"
 Const PUBLICQUEUE_VALUENAME = "Public Queues"
@@ -960,7 +961,7 @@ Dim oMSMQApp
 Dim sQueue, oQueue
 Dim aPublicQueues, i
 
-If WScript.Arguments.Count &lt; 7 Then Call ShowUsage()
+If WScript.Arguments.Count < 7 Then Call ShowUsage()
 SourceId = WScript.Arguments(0)
 ManagedEntityId = WScript.Arguments(1)
 sComputer = WScript.Arguments(2)
@@ -981,14 +982,14 @@ Set wshNetwork = CreateObject("Wscript.Network")
 sUser = wshNetwork.UserName
 sDomain = wshNetwork.UserDomain
 
-sMessage = 	"Discovery started with following parameters: " &amp; VbCrLf &amp; _
-"Source ID: " &amp; SourceId &amp; VbCrLf &amp; _
-"Managed Entity ID: " &amp; ManagedEntityId &amp; VbCrLf &amp; _
-"Computer: " &amp; sComputer  &amp; VbCrLf &amp; _
-"Network: " &amp; wshNetwork.ComputerName  &amp; VbCrLf &amp; _
-"Discover Public Queues: " &amp; bDiscoverPublicQueues &amp; VbCrLf &amp; _
-"Discover Private Queues: " &amp; bDiscoverPrivateQueues &amp; VbCrLf &amp; _
-"User credentials: " &amp; sDomain &amp; "\" &amp; sUser
+sMessage = 	"Discovery started with following parameters: " & VbCrLf & _
+"Source ID: " & SourceId & VbCrLf & _
+"Managed Entity ID: " & ManagedEntityId & VbCrLf & _
+"Computer: " & sComputer  & VbCrLf & _
+"Network: " & wshNetwork.ComputerName  & VbCrLf & _
+"Discover Public Queues: " & bDiscoverPublicQueues & VbCrLf & _
+"Discover Private Queues: " & bDiscoverPrivateQueues & VbCrLf & _
+"User credentials: " & sDomain & "\" & sUser
 
 Call LogDetail(EVENTNO_SCRIPT_STARTED,sMessage)
 
@@ -1050,7 +1051,7 @@ Call LogDetail(EVENTNO_SCRIPT_ENDED,"Queue Discovery script ended.")
 
 Function GetQueueServer(Path)
 
-If InStr(Path,".") &gt; 0 THEN
+If InStr(Path,".") > 0 THEN
 GetQueueServer = Left(Path, InStr(Path,".")-1)
 Else
 GetQueueServer = Path
@@ -1063,7 +1064,7 @@ Function IsCluster()
 Dim wshNetwork
 
 Set wshNetwork = CreateObject("Wscript.Network")
-if StrComp(wshNetwork.ComputerName, GetQueueServer(sComputer), 1) &lt;&gt; 0 then
+if StrComp(wshNetwork.ComputerName, GetQueueServer(sComputer), 1) <> 0 then
 IsCluster = True
 else
 IsCluster = False
@@ -1092,9 +1093,9 @@ End If
 Set QueueInfo = Queues.Next
 Wend
 Else
-Message =	"Error searching Active Directory while discovering public queues." &amp; VbCrLf &amp; _
-"Error number: " &amp; Err.Number &amp; VbCrLf &amp; _
-"Error Description: " &amp; Err.Description
+Message =	"Error searching Active Directory while discovering public queues." & VbCrLf & _
+"Error number: " & Err.Number & VbCrLf & _
+"Error Description: " & Err.Description
 On Error GoTo 0
 Call ThrowScriptError(EVENTNO_ERROR_ADLOOKUP,EVENT_LEVEL_ERROR,Message,False)
 End If
@@ -1144,21 +1145,25 @@ Set NewQueueInstance = oQueue
 Else
 
 On Error GoTo 0
-sMessage = 	"Error connecting to queue: " &amp; QueuePath &amp; "." &amp; VbCrLf &amp; _
+sMessage = 	"Error connecting to queue: " & QueuePath & "." & VbCrLf & _
 "Validate that the MSMQ Queue Access profile has access to read the queue properties."
 Call ThrowScriptError(EVENTNO_ERROR_COULDNOTOPENQUEUE,EVENT_LEVEL_ERROR,sMessage,False)
 
 Set NewQueueInstance = Nothing
 
 End If
-
 End Function
 
 Sub SubmitQueue(NewQueue)
+Dim PathName,QueueNameArr,QueueName
+PathName = NewQueue.PathName
+QueueNameArr = Split(PathName,"\",2)
+QueueName = QueueNameArr(1)
 Dim oInstance
 Set oInstance = oDiscoveryData.CreateClassInstance("$MPElement[Name='MSMQ.Queue']$")
 With oInstance
 .AddProperty "$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", NewQueue.ComputerName
+.AddProperty "$MPElement[Name='MSMQ.Queue']/QueueName$",QueueName
 .AddProperty "$MPElement[Name='MSMQ.Queue']/PathName$",NewQueue.PathName
 .AddProperty "$MPElement[Name='MSMQ.Queue']/IsPublic$",NewQueue.IsPublic
 .AddProperty "$MPElement[Name='MSMQ.Queue']/FormatName$",NewQueue.FormatName
@@ -1171,96 +1176,76 @@ With oInstance
 .AddProperty "$MPElement[Name='MSMQ.Queue']/ADsPath$",NewQueue.ADsPath
 .AddProperty "$MPElement[Name='MSMQ.Queue']/IsTestQueue$",NewQueue.IsTestQueue
 End With
-
 Call oDiscoveryData.AddInstance(oInstance)
-
 End Sub
 
 Sub WriteDetailEvent(NewQueue)
 Dim sMessage
-sMessage = 	"PrincipalName: " &amp; NewQueue.ComputerName &amp; VbCrLf &amp; _
-"Public: " &amp; NewQueue.IsPublic &amp; VbCrLf &amp; _
-"PathName: " &amp; NewQueue.PathName &amp; VbCrLf &amp; _
-"ADsPath: "  &amp; NewQueue.ADsPath &amp; VbCrLf &amp; _
-"Format Name: "  &amp; NewQueue.FormatName &amp; VbCrLf &amp; _
-"IsTransactional: " &amp; NewQueue.IsTransactional &amp; VbCrLf &amp; _
-"Label: " &amp; NewQueue.Label &amp; VbCrLf &amp; _
-"PrivilegeLevel: "  &amp; NewQueue.PrivilegeLevel
+sMessage = 	"PrincipalName: " & NewQueue.ComputerName & VbCrLf & _
+"Public: " & NewQueue.IsPublic & VbCrLf & _
+"PathName: " & NewQueue.PathName & VbCrLf & _
+"ADsPath: "  & NewQueue.ADsPath & VbCrLf & _
+"Format Name: "  & NewQueue.FormatName & VbCrLf & _
+"IsTransactional: " & NewQueue.IsTransactional & VbCrLf & _
+"Label: " & NewQueue.Label & VbCrLf & _
+"PrivilegeLevel: "  & NewQueue.PrivilegeLevel
 Call LogDetail(EVENTNO_FOUND_QUEUE,sMessage)
-
 End Sub
 
 Sub WriteQueueToRegistry(NewQueue,Computer)
 Dim oReg, sRegRoot
-Set oReg=GetObject("winmgmts:\\" &amp; Computer &amp; "\root\default:StdRegProv")
-
+Set oReg=GetObject("winmgmts:\\" & Computer & "\root\default:StdRegProv")
 If NewQueue.IsPublic = True Then
-
-sRegRoot = MSMQ_REGROOT &amp; "\" &amp; Computer &amp; "\" &amp; PUBLICQUEUE_VALUENAME &amp; "\" &amp; NewQueue.Label
+sRegRoot = MSMQ_REGROOT & "\" & Computer & "\" & PUBLICQUEUE_VALUENAME & "\" & NewQueue.Label
 oReg.CreateKey HKEY_LOCAL_MACHINE,sRegRoot
 oReg.SetStringValue HKEY_LOCAL_MACHINE,sRegRoot,"PathName",NewQueue.PathName
 oReg.SetStringValue HKEY_LOCAL_MACHINE,sRegRoot,"FormatName",NewQueue.FormatName
 oReg.SetStringValue HKEY_LOCAL_MACHINE,sRegRoot,"Quota",NewQueue.Quota
 oReg.SetStringValue HKEY_LOCAL_MACHINE,sRegRoot,"JournalEnabled",NewQueue.JournalEnabled
 oReg.SetStringValue HKEY_LOCAL_MACHINE,sRegRoot,"JournalQuota",NewQueue.JournalQuota
-
 End If
-
 End Sub
-
 
 Sub InitializeRegistry(Computer,KeyPath,ValueName)
 Dim oReg
-Set oReg=GetObject("winmgmts:\\" &amp; Computer &amp; "\root\default:StdRegProv")
-
+Set oReg=GetObject("winmgmts:\\" & Computer & "\root\default:StdRegProv")
 oReg.CreateKey HKEY_LOCAL_MACHINE,KeyPath
-oReg.CreateKey HKEY_LOCAL_MACHINE,KeyPath &amp; "\" &amp; Computer
-oReg.CreateKey HKEY_LOCAL_MACHINE,KeyPath &amp; "\" &amp; Computer &amp; "\" &amp; PUBLICQUEUE_VALUENAME
-
+oReg.CreateKey HKEY_LOCAL_MACHINE,KeyPath & "\" & Computer
+oReg.CreateKey HKEY_LOCAL_MACHINE,KeyPath & "\" & Computer & "\" & PUBLICQUEUE_VALUENAME
 End Sub
-
 
 Sub AddToPublicQueuesRegistry(Computer,KeyPath,ValueName,Value)
 Dim oReg, sValue, i
-
-Set oReg=GetObject("winmgmts:\\" &amp; Computer &amp; "\root\default:StdRegProv")
+Set oReg=GetObject("winmgmts:\\" & Computer & "\root\default:StdRegProv")
 Call oReg.GetMultiStringValue(HKEY_LOCAL_MACHINE,KeyPath,ValueName,aValues)
 i = 0
-
 For Each sValue In aValues
 ReDim Preserve aNewValues(i)
 aNewValues(i) = sValue
 i=i+1
 Next
-
 ReDim Preserve aNewValues(i)
 aNewValues(i) = Value
 Call oReg.SetMultiStringValue(HKEY_LOCAL_MACHINE,KeyPath,ValueName,aNewValues)
-
 End Sub
 
 Sub ThrowScriptError(EventNo,Severity,Message,Abort)
-
-Message = VbCrLf &amp; Message
+Message = VbCrLf & Message
 Call oAPI.LogScriptEvent(SCRIPT_NAME,EventNo,Severity,Message)
 If Abort = True Then WScript.Quit
-
 End Sub
 
-
 Sub LogDetail(EventNo,Message)
-
-Message = VbCrLf &amp; "Calling MP Element ID: $MPElement$" &amp; vbcrlf &amp;  Message
+Message = VbCrLf & "Calling MP Element ID: $MPElement$" & vbcrlf &  Message
 If bLogDetail = True Then
 Call oAPI.LogScriptEvent(SCRIPT_NAME,EventNo,EVENT_LEVEL_INFO,Message)
 End If
-
 End Sub
 
 Function IsMSMQServiceRunning()
 Dim WMI, Services, Service
-Set WMI = GetObject("winmgmts:\\" &amp; sComputer &amp; "\root\cimv2")
-Set Services = WMI.ExecQuery("select * from win32_service where name = '" &amp; sServiceName &amp; "'")
+Set WMI = GetObject("winmgmts:\\" & sComputer & "\root\cimv2")
+Set Services = WMI.ExecQuery("select * from win32_service where name = '" & sServiceName & "'")
 For Each Service In Services
 If lcase(Service.State) = "running" Then
 IsMSMQServiceRunning = True
@@ -1268,23 +1253,18 @@ Else
 IsMSMQServiceRunning = False
 End If
 Next
-
 End Function
 
 Sub ShowUsage
-
 WScript.Echo "Usage: "
-WScript.Echo "cscript DiscoverQueues.vbs &lt;CallingRuleGUID&gt; &lt;TargetEntityGUID&gt; &lt;Computer&gt; &lt;ServiceName&gt; &lt;DiscoverPublicQueues&gt; &lt;DiscoverPrivateQueues&gt; &lt;WorkgroupServer&gt; &lt;LogDetail&gt;"
+WScript.Echo "cscript DiscoverQueues.vbs <CallingRuleGUID> <TargetEntityGUID> <Computer> <ServiceName> <DiscoverPublicQueues> <DiscoverPrivateQueues> <WorkgroupServer> <LogDetail>"
 WScript.Echo
 WScript.Echo "Example:"
 WScript.Echo "cscript DiscoverQueues.vbs {b3e9befe-173b-78a2-3e41-e19ecb58d9d5} {2fa43439-afc4-cc64-9b3a-9642ec898c1c} srv1.contoso.com true true false false"
-
 WScript.Quit
-
 End Sub
 
 Class Queue
-
 Public ComputerName
 Public PathName
 Public FormatName
@@ -1297,8 +1277,7 @@ Public JournalEnabled
 Public JournalQuota
 Public AdsPath
 Public IsTestQueue
-
-End Class</ScriptBody>
+End Class]]></ScriptBody>
                 <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
               </DataSource>
             </MemberModules>
@@ -2247,7 +2226,7 @@ End Class</ScriptBody>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
-            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
@@ -2269,7 +2248,7 @@ End Class</ScriptBody>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
-            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
@@ -2291,7 +2270,7 @@ End Class</ScriptBody>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
-            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
@@ -2313,7 +2292,7 @@ End Class</ScriptBody>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
-            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
@@ -2335,7 +2314,7 @@ End Class</ScriptBody>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
-            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
@@ -2357,7 +2336,7 @@ End Class</ScriptBody>
             <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 			<DebugLogging>false</DebugLogging>
             <TimeoutSeconds>300</TimeoutSeconds>
-            <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+            <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           </DataSource>
         </DataSources>
         <ConditionDetection ID="System.Performance.DataGenericMapper" TypeID="Perf!System.Performance.DataGenericMapper">
@@ -7705,7 +7684,7 @@ End Class</ScriptBody>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           <CounterName>Queue Percent Used</CounterName>
           <WarningThreshold>60</WarningThreshold>
           <CriticalThreshold>80</CriticalThreshold>
@@ -7740,7 +7719,7 @@ End Class</ScriptBody>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           <CounterName>Journal Percent Used</CounterName>
           <WarningThreshold>60</WarningThreshold>
           <CriticalThreshold>80</CriticalThreshold>
@@ -7775,7 +7754,7 @@ End Class</ScriptBody>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           <CounterName>KBytes In Journal Queue</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
@@ -7810,7 +7789,7 @@ End Class</ScriptBody>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           <CounterName>KBytes In Queue</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
@@ -7845,7 +7824,7 @@ End Class</ScriptBody>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           <CounterName>Messages In Journal Queue</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
@@ -7880,7 +7859,7 @@ End Class</ScriptBody>
           <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
 		  <DebugLogging>false</DebugLogging>
           <TimeoutSeconds>300</TimeoutSeconds>
-          <QueueName>$Target/Property[Type="MSMQ.Queue"]/Label$</QueueName>
+          <QueueName>$Target/Property[Type="MSMQ.Queue"]/QueueName$</QueueName>
           <CounterName>Messages In Queue</CounterName>
           <WarningThreshold>500</WarningThreshold>
           <CriticalThreshold>1000</CriticalThreshold>
@@ -8733,6 +8712,9 @@ Journal Percent Used: {8}
         <DisplayString ElementID="MSMQ.Queue">
           <Name>MSMQ Queue</Name>
           <Description></Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue" SubElementID="QueueName">
+          <Name>QueueName</Name>
         </DisplayString>
         <DisplayString ElementID="MSMQ.Queue" SubElementID="ADsPath">
           <Name>ADsPath</Name>
