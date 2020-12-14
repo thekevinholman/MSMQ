@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.3.0</Version>
+      <Version>10.0.3.2</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -131,7 +131,7 @@
 #  MSMQ Server Role Discovery
 #
 #  Author: Kevin Holman
-#  v1.3
+#  v1.4
 #=================================================================================
 param($SourceId,$ManagedEntityId,[string]$ComputerName,[string]$IsVirtualNode,[string]$MGName,[string]$DiscoverClusterNodes,[string]$DebugLogging)
 
@@ -305,74 +305,82 @@ ELSE
   {
     #Get Non-Clustered MSMQ instances
     $MQService = gwmi -Query "SELECT * FROM Win32_Service WHERE Name = 'MSMQ'"
-    $ServiceName = $MQService.Name
-    $RegInstance = "HKLM:\SOFTWARE\Microsoft\MSMQ"
-    $ReginstanceParam = $RegInstance + "\Parameters"
-    $Version = (Get-ItemProperty $RegInstanceParam).CurrentBuild
-    $VersionSplit = $Version.Split(".")
-    [double]$VersionNumber = $VersionSplit[0] + "." + $VersionSplit[1]
-    #Only discover MSMQ on WS2012 and later
-    IF ($VersionNumber -ge "6.2")
+    IF (!($MQService))
     {
-      $Workgroup = $false
-      $StorePersistentPath = ""
-      $MessageLoggerFolder = ""
-      $StoreXactLogPath = ""
-      $MQS_DepClients = $false
-      $Routing = $false
-
-      #Get registry values for discovery properties
-      $Workgroup = (Get-ItemProperty ($ReginstanceParam)).Workgroup
-      $StorePersistentPath = (Get-ItemProperty ($ReginstanceParam)).StorePersistentPath
-      $MessageLoggerFolder = (Get-ItemProperty ($ReginstanceParam)).StoreLogPath
-      $StoreXactLogPath = (Get-ItemProperty ($ReginstanceParam)).StoreXactLogPath
-      $MQS_DepClients = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).MQS_DepClients
-      $Routing = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).Routing
-      $MachineQuota = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).MachineQuota
-      $MachineJournalQuota = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).MachineJournalQuota
-
-      IF ($Workgroup -eq "1"){$Workgroup = $true}ELSE{$Workgroup = $false}
-      IF ($MQS_DepClients -eq "1"){$MQS_DepClients = $true}ELSE{$MQS_DepClients = $false}
-      IF ($Routing -eq "1"){$Routing = $true}ELSE{$Routing = $false}
-      IF ($MachineQuota -eq $null){$MachineQuota = "-1"}
-      IF ($MachineJournalQuota -eq $null){$MachineJournalQuota = "-1"}
-
-      #Discover MSMQ Server Role
-      $instance = $DiscoveryData.CreateClassInstance("$MPElement[Name='MSMQ.Server']$")
-      $instance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $ComputerName)
-      $instance.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$", $ComputerName)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/ServiceName$", $ServiceName)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Workgroup$", $Workgroup)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/DependentClients$", $MQS_DepClients)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Routing$", $Routing)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Quota$", $MachineQuota)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/JournalQuota$", $MachineJournalQuota)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/MessageFilesFolder$", $StorePersistentPath)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/MessageLoggerFolder$", $MessageLoggerFolder)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/TransactionLoggerFolder$", $StoreXactLogPath)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/IsClustered$", $false)
-      $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Version$", $Version)	  
-      $DiscoveryData.AddInstance($instance)
-
-      $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nDiscovering MSMQ Instance: `nComputerName: ($ComputerName). `nServiceName: ($ServiceName). `nVersion: ($Version). `nWorkGroup: ($Workgroup). `nMessageFilesFolder: ($StorePersistentPath).")
-
-      #Discover Triggers
-      $MQTriggers = gwmi -Query "SELECT * FROM Win32_Service WHERE Name = 'MSMQTriggers'"
-      IF ($MQTriggers)
-      {
-        $instance = $DiscoveryData.CreateClassInstance("$MPElement[Name='MSMQ.Trigger']$")
-        $instance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $ComputerName)
-        $instance.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$", $ComputerName)
-        $instance.AddProperty("$MPElement[Name='MSMQ.Trigger']/ServiceName$", "MSMQTriggers")
-        $DiscoveryData.AddInstance($instance)	  
-      
-        $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nDiscovering Trigger: `nComputerName: ($ComputerName). `nServiceName: (MSMQTriggers).")
-      }
+      #Log event MSMQ Not Found
+      $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nMSMQ service not found.  Nothing discovered.")      
     }
     ELSE
     {
-      #Log event MSMQ Found but wrong version
-      $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nMSMQ found but unsupported version. `nMinimum Version: (6.2). `nVersion Found: ($VersionNumber). `nWill not discover this instance.")
+      $ServiceName = $MQService.Name
+      $RegInstance = "HKLM:\SOFTWARE\Microsoft\MSMQ"
+      $ReginstanceParam = $RegInstance + "\Parameters"
+      $Version = (Get-ItemProperty $RegInstanceParam).CurrentBuild
+      $VersionSplit = $Version.Split(".")
+      [double]$VersionNumber = $VersionSplit[0] + "." + $VersionSplit[1]
+      #Only discover MSMQ on WS2012 and later
+      IF ($VersionNumber -ge "6.2")
+      {
+        $Workgroup = $false
+        $StorePersistentPath = ""
+        $MessageLoggerFolder = ""
+        $StoreXactLogPath = ""
+        $MQS_DepClients = $false
+        $Routing = $false
+
+        #Get registry values for discovery properties
+        $Workgroup = (Get-ItemProperty ($ReginstanceParam)).Workgroup
+        $StorePersistentPath = (Get-ItemProperty ($ReginstanceParam)).StorePersistentPath
+        $MessageLoggerFolder = (Get-ItemProperty ($ReginstanceParam)).StoreLogPath
+        $StoreXactLogPath = (Get-ItemProperty ($ReginstanceParam)).StoreXactLogPath
+        $MQS_DepClients = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).MQS_DepClients
+        $Routing = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).Routing
+        $MachineQuota = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).MachineQuota
+        $MachineJournalQuota = (Get-ItemProperty ($ReginstanceParam + "\MachineCache")).MachineJournalQuota
+
+        IF ($Workgroup -eq "1"){$Workgroup = $true}ELSE{$Workgroup = $false}
+        IF ($MQS_DepClients -eq "1"){$MQS_DepClients = $true}ELSE{$MQS_DepClients = $false}
+        IF ($Routing -eq "1"){$Routing = $true}ELSE{$Routing = $false}
+        IF ($MachineQuota -eq $null){$MachineQuota = "-1"}
+        IF ($MachineJournalQuota -eq $null){$MachineJournalQuota = "-1"}
+
+        #Discover MSMQ Server Role
+        $instance = $DiscoveryData.CreateClassInstance("$MPElement[Name='MSMQ.Server']$")
+        $instance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $ComputerName)
+        $instance.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$", $ComputerName)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/ServiceName$", $ServiceName)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Workgroup$", $Workgroup)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/DependentClients$", $MQS_DepClients)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Routing$", $Routing)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Quota$", $MachineQuota)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/JournalQuota$", $MachineJournalQuota)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/MessageFilesFolder$", $StorePersistentPath)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/MessageLoggerFolder$", $MessageLoggerFolder)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/TransactionLoggerFolder$", $StoreXactLogPath)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/IsClustered$", $false)
+        $instance.AddProperty("$MPElement[Name='MSMQ.Server']/Version$", $Version)	  
+        $DiscoveryData.AddInstance($instance)
+
+        $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nDiscovering MSMQ Instance: `nComputerName: ($ComputerName). `nServiceName: ($ServiceName). `nVersion: ($Version). `nWorkGroup: ($Workgroup). `nMessageFilesFolder: ($StorePersistentPath).")
+
+        #Discover Triggers
+        $MQTriggers = gwmi -Query "SELECT * FROM Win32_Service WHERE Name = 'MSMQTriggers'"
+        IF ($MQTriggers)
+        {
+          $instance = $DiscoveryData.CreateClassInstance("$MPElement[Name='MSMQ.Trigger']$")
+          $instance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $ComputerName)
+          $instance.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$", $ComputerName)
+          $instance.AddProperty("$MPElement[Name='MSMQ.Trigger']/ServiceName$", "MSMQTriggers")
+          $DiscoveryData.AddInstance($instance)	  
+      
+          $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nDiscovering Trigger: `nComputerName: ($ComputerName). `nServiceName: (MSMQTriggers).")
+        }
+      }
+      ELSE
+      {
+        #Log event MSMQ Found but wrong version
+        $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nMSMQ found but unsupported version. `nMinimum Version: (6.2). `nVersion Found: ($VersionNumber). `nWill not discover this instance.")
+      }
     }
   }
 }
@@ -405,7 +413,7 @@ $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nComputerNam
                   </Parameter>
                   <Parameter>
                     <Name>ComputerName</Name>
-                    <Value>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Value>
+                    <Value>$Config/ComputerName$</Value>
                   </Parameter>
                   <Parameter>
                     <Name>IsVirtualNode</Name>
