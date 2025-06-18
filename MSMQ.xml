@@ -2,7 +2,7 @@
   <Manifest>
     <Identity>
       <ID>MSMQ</ID>
-      <Version>10.0.3.2</Version>
+      <Version>10.0.3.3</Version>
     </Identity>
     <Name>MSMQ</Name>
     <References>
@@ -24,11 +24,6 @@
       <Reference Alias="MSIL">
         <ID>Microsoft.SystemCenter.InstanceGroup.Library</ID>
         <Version>7.5.8501.0</Version>
-        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
-      </Reference>
-      <Reference Alias="MSDRL">
-        <ID>Microsoft.SystemCenter.DataWarehouse.Report.Library</ID>
-        <Version>7.1.10226.0</Version>
         <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
       </Reference>
       <Reference Alias="System">
@@ -1296,6 +1291,448 @@ End Class]]></ScriptBody>
         </ModuleImplementation>
         <OutputType>System!System.Discovery.Data</OutputType>
       </DataSourceModuleType>
+      <DataSourceModuleType ID="MSMQ.QueueStats.Legacy.DS" Accessibility="Public" RunAs="MSMQ.RunAsProfile" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" name="IntervalSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="ComputerName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="QueuePath" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="LogDetail" type="xsd:boolean" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="TimeoutSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="LogDetail" Selector="$Config/LogDetail$" ParameterType="bool" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.TimedScript.PropertyBagProvider">
+                <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+                <SyncTime />
+                <ScriptName>QueueStatistics.vbs</ScriptName>
+                <Arguments>$Config/ComputerName$ $Config/LogDetail$</Arguments>
+                <ScriptBody>option explicit
+SetLocale("en-us")
+
+Const SCRIPT_NAME = "QueueStatistics.vbs"
+
+Const MQ_RECEIVE_ACCESS 	= 1
+Const MQ_SEND_ACCESS 		= 2
+Const MQ_PEEK_ACCESS 		= 32
+Const MQ_ADMIN_ACCESS		= 128
+
+Const MQ_DENY_NONE 			= 0
+Const MQ_DENY_RECEIVE_SHARE = 1
+
+Const EVENT_LEVEL_ERROR 	= 1
+Const EVENT_LEVEL_WARNING 	= 2
+Const EVENT_LEVEL_INFO 		= 4
+
+Const EVENTNO_SCRIPT_STARTED			= 14301
+Const EVENTNO_SCRIPT_ENDED				= 14302
+Const EVENTNO_CALLINGQUEUE				= 14303
+Const EVENTNO_QUEUECONNECTION			= 14304
+Const EVENTNO_STATSSUBMITTED			= 14305
+Const EVENTNO_QUEUESKIPPED				= 14307
+Const EVENTNO_DISCOVER_PUBLICQUEUES		= 14312
+Const EVENTNO_MSMQSERVICE_NOTRUNNING	= 14330
+Const EVENTNO_ERROR_ADLOOKUP			= 14331
+Const EVENTNO_ERROR_COULDNOTOPENQUEUE 	= 14332
+Const EVENTNO_ERROR_REGKEYNOTFOUND	 	= 14333
+Const EVENTNO_GENERAL_ERROR             = 14334
+
+Const HKEY_LOCAL_MACHINE = &amp;H80000002
+
+Const MSMQ_REGROOT = "SOFTWARE\Microsoft\Microsoft Operations Manager\3.0\Modules\MSMQ Management Pack"
+Const PUBLICQUEUE_VALUENAME = "Public Queues"
+
+Dim sComputer,bLogDetail,oAPI
+Dim sRegRoot
+Dim wshNetwork,sDomain,sUser,sMessage
+Dim bIsCluster,WshShell,objWshShell,sName
+Dim oApp,oQueueInfo
+Dim iTotalQueueCount,sQueue,aPublicQueues,i
+
+sComputer = WScript.Arguments(0)
+bLogDetail = CBool(WScript.Arguments(1))
+
+sRegRoot = MSMQ_REGROOT &amp; "\" &amp; sComputer &amp; "\" &amp; PUBLICQUEUE_VALUENAME
+
+Set oAPI = CreateObject("MOM.ScriptAPI")
+
+Set wshNetwork = CreateObject("Wscript.Network")
+sDomain = wshNetwork.UserDomain
+sUser = wshNetwork.UserName
+sMessage =	"Starting queue statistic collection." &amp; VbCrLf &amp; _
+"Network: " &amp; wshNetwork.ComputerName &amp; VbCrLf &amp; _
+"User credentials: Domain: " &amp; sDomain &amp; ".User Name: " &amp; sUser
+Call LogDetail(EVENTNO_SCRIPT_STARTED,sMessage)
+
+bIsCluster = false
+If IsCluster = True then
+bIsCluster = true
+set WshShell = CreateObject("WScript.Shell")
+set objWshShell = WshShell.Environment("Process")
+sName = GetQueueServer(sComputer)
+objWshShell("_CLUSTER_NETWORK_NAME_") = sName
+objWshShell("_CLUSTER_NETWORK_HOSTNAME_") = sName
+End If
+
+Set oApp = CreateObject("MSMQ.MSMQApplication")
+Set oQueueInfo = CreateObject("MSMQ.MSMQQueueInfo")
+oApp.Machine = sComputer
+
+iTotalQueueCount = 0
+
+'Private Queues
+For Each sQueue In oApp.PrivateQueues
+Call LogDetail(EVENTNO_CALLINGQUEUE,"Collecting statistics for " &amp; sQueue &amp; ".")
+Call CollectQueueStats(sComputer,GetPrivateQueue(sQueue))
+Next
+
+'Public Queues
+Call LogDetail(EVENTNO_DISCOVER_PUBLICQUEUES,"Discovering public queues for queue statistic collection.")
+aPublicQueues = GetPublicQueues(sComputer)
+For i = 0 To UBound(aPublicQueues)-1
+Call CollectQueueStats(sComputer,aPublicQueues(i))
+Next
+
+'Return
+If iTotalQueueCount &gt; 0 Then
+Call LogDetail(EVENTNO_SCRIPT_ENDED,"Script ended.  Data returned for " &amp; iTotalQueueCount &amp; " queues.")
+Else
+'We have no active queues with data.  To avoid an error, we need to return an empty property bag.
+Call CreateEmptyPropertyBag()
+Call LogDetail(EVENTNO_SCRIPT_ENDED,"Script ended but no active queues were found.  No data was returned by the script.")
+End If
+
+if bIsCluster = true then
+objWshShell.Remove("_CLUSTER_NETWORK_NAME_")
+objWshShell.Remove("_CLUSTER_NETWORK_HOSTNAME_")
+End If
+
+oAPI.ReturnItems()
+
+Sub CollectQueueStats(Computer,Queue)
+Dim oQueueStat, oMgmt, sFormatname, oQueueInfo, oMessage, oQueue
+
+Set oQueueStat = New QueueStat
+Set oMgmt = CreateObject("MSMQ.MSMQManagement")
+sFormatName = "DIRECT=OS:" &amp; Queue.PathName
+
+On Error Resume Next
+Call oMgmt.Init(Computer, ,sFormatName)
+If Err.Number = 0 Then
+Call LogDetail(EVENTNO_QUEUECONNECTION,"Connected to " &amp; QueuePath &amp; " on " &amp; Computer &amp; ".")
+On Error GoTo 0
+Else
+'If we get an error, we either have a public queue not hosted by the specified machine
+'or the queue is not active.
+Call LogDetail(EVENTNO_QUEUESKIPPED,"Skipping " &amp; QueuePath &amp; " on " &amp; Computer &amp; ".")
+On Error GoTo 0
+Exit Sub
+End If
+
+oQueueStat.ComputerName = Computer
+oQueueStat.QueuePath = Queue.PathName
+oQueueStat.MessagesInQueue = oMgmt.MessageCount
+oQueueStat.KBytesInQueue = CDbl(oMgmt.BytesInQueue) / 1000
+
+'If the queue has a quota, calculated percentage
+If Queue.Quota &gt; 0 Then
+oQueueStat.QuotaPctg = oQueueStat.KBytesInQueue / Queue.Quota * 100
+Else
+oQueueStat.QuotaPctg = 0
+End If
+
+'If the queue has journal enabled, check its usage.
+If Queue.JournalEnabled &lt;&gt; 0 Then
+
+oQueueStat.MessagesInJournalQueue = oMgmt.JournalMessageCount
+oQueueStat.KBytesInJournalQueue = CDbl(oMgmt.BytesInJournal) / 1000
+
+'If a journal quota is defined, calculate the usage percentage.
+If Queue.JournalQuota &gt; 0 Then
+oQueueStat.JournalQuotaPctg = oQueueStat.KBytesInJournalQueue / Queue.JournalQuota * 100
+Else
+oQueueStat.JournalQuotaPctg = 0
+End If
+End If
+
+Err.Clear
+On Error Resume Next
+Set oQueueInfo = CreateObject("MSMQ.MSMQQueueInfo")
+oQueueInfo.FormatName = "DIRECT=OS:" &amp; Queue.PathName
+Set oQueue = oQueueInfo.Open(MQ_PEEK_ACCESS,MQ_DENY_NONE)
+
+If Err.Number &lt;&gt; 0 Then
+sMessage =	"Error detected.  Error Number: " &amp; Err.Number
+Call LogDetail(EVENTNO_GENERAL_ERROR,sMessage)
+Select Case Err.Number
+Case -1072824283
+oQueueStat.ConnectionStatus = "Access Denied"
+Case Else
+oQueueStat.ConnectionStatus = "Unknown Failure"
+End Select
+On Error GoTo 0
+Else
+On Error GoTo 0
+oQueueStat.ConnectionStatus = "Success"
+
+'If there are messages in the queue, check oldest and newest.
+If oQueueStat.MessagesInQueue &gt; 0 Then
+
+Set oMessage = oQueue.PeekCurrent
+oQueueStat.OldestMessageDateTime = oMessage.ArrivedTime
+oQueueStat.OldestMessageAge = DateDiff("s",oQueueStat.OldestMessageDateTime,Now)
+Do While Not oMessage Is Nothing
+oQueueStat.NewestMessageDateTime = oMessage.ArrivedTime
+oQueueStat.NewestMessageAge = DateDiff("s",oQueueStat.NewestMessageDateTime,Now)
+Set oMessage = oQueue.PeekNext(False,False,0)
+Loop
+oQueue.Close
+
+End If
+End If
+
+Call FillPropertyBag(oQueueStat)
+
+End Sub
+
+Sub CreateEmptyPropertyBag()
+Dim oQueueStat
+
+Set oQueueStat = New QueueStat
+oQueueStat.ComputerName = sComputer
+oQueueStat.QueuePath = ""
+oQueueStat.ConnectionStatus = ""
+oQueueStat.MessagesInQueue = ""
+oQueueStat.KBytesInQueue = ""
+oQueueStat.QuotaPctg = ""
+oQueueStat.MessagesInJournalQueue = ""
+oQueueStat.KBytesInJournalQueue = ""
+oQueueStat.JournalQuotaPctg = ""
+oQueueStat.OldestMessageDateTime = ""
+oQueueStat.OldestMessageAge = ""
+oQueueStat.NewestMessageDateTime = ""
+oQueueStat.NewestMessageAge = ""
+Call FillPropertyBag(oQueueStat)
+
+End Sub
+
+Sub FillPropertyBag(oQueueStat)
+Dim oBag, sMessage
+
+Set oBag = oAPI.CreatePropertyBag()
+
+Call oBag.AddValue("Computer Name",oQueueStat.ComputerName)
+Call oBag.AddValue("Queue Path",oQueueStat.QueuePath)
+Call oBag.AddValue("Connection Status",oQueueStat.ConnectionStatus)
+Call oBag.AddValue("Messages In Queue",oQueueStat.MessagesInQueue)
+Call oBag.AddValue("KBytes In Queue",oQueueStat.KBytesInQueue)
+Call oBag.AddValue("Quota Pctg",oQueueStat.QuotaPctg)
+Call oBag.AddValue("Messages In Journal Queue",oQueueStat.MessagesInJournalQueue)
+Call oBag.AddValue("KBytes In Journal Queue",oQueueStat.KBytesInJournalQueue)
+Call oBag.AddValue("Journal Quota Pctg",oQueueStat.JournalQuotaPctg)
+Call oBag.AddValue("Oldest Message DateTime",oQueueStat.OldestMessageDateTime)
+Call oBag.AddValue("Oldest Message Age",oQueueStat.OldestMessageAge)
+Call oBag.AddValue("Newest Message DateTime",oQueueStat.NewestMessageDateTime)
+Call oBag.AddValue("Newest Message Age",oQueueStat.NewestMessageAge)
+
+iTotalQueueCount = iTotalQueueCount + 1
+oAPI.AddItem(oBag)
+
+sMessage = 	"Computer Name: " &amp; oQueueStat.ComputerName &amp; VbCrLf &amp; _
+"Queue Path: " &amp; oQueueStat.QueuePath &amp; VbCrLf &amp; _
+"Connection Status: " &amp; oQueueStat.ConnectionStatus &amp; VbCrLf &amp; _
+"Messages In Queue: " &amp; oQueueStat.MessagesInQueue &amp; VbCrLf &amp; _
+"KBytes In Queue: " &amp; oQueueStat.KBytesInQueue &amp; VbCrLf &amp; _
+"Quota: " &amp; oQueueInfo.Quota &amp; VbCrLf &amp; _
+"Quota Pctg: " &amp; oQueueStat.QuotaPctg &amp; VbCrLf &amp; _
+"Messages In Journal Queue: " &amp; oQueueStat.MessagesInJournalQueue &amp; VbCrLf &amp; _
+"KBytes In Journal Queue: " &amp; oQueueStat.KBytesInJournalQueue &amp; VbCrLf &amp; _
+"Journal Quota: " &amp; oQueueInfo.JournalQuota &amp; VbCrLf &amp; _
+"Journal Quota Pctg: " &amp; oQueueStat.JournalQuotaPctg &amp; VbCrLf &amp; _
+"Oldest Message DateTime: " &amp; oQueueStat.OldestMessageDateTime &amp; VbCrLf &amp; _
+"Oldest Message Age: " &amp; oQueueStat.OldestMessageAge &amp; VbCrLf &amp; _
+"Newest Message DateTime: " &amp; oQueueStat.NewestMessageDateTime &amp; VbCrLf &amp; _
+"Newest Message Age: " &amp; oQueueStat.NewestMessageAge
+Call LogDetail(EVENTNO_STATSSUBMITTED,sMessage)
+
+End Sub
+
+Function GetPublicQueues(Computer)
+Dim oReg, i, sQueue, NewQueue, sMessage, aQueues, sValue
+
+Set oReg=GetObject("winmgmts:\\" &amp; Computer &amp; "\root\default:StdRegProv")
+Call oReg.EnumKey(HKEY_LOCAL_MACHINE,sRegRoot,aQueues)
+
+On Error Resume Next
+i = 0
+For Each sQueue In aQueues
+ReDim Preserve PublicQueues(i)
+Set NewQueue = New Queue
+oReg.GetStringValue HKEY_LOCAL_MACHINE,sRegRoot &amp; "\" &amp; sQueue,"FormatName",sValue
+NewQueue.FormatName = sValue
+oReg.GetStringValue HKEY_LOCAL_MACHINE,sRegRoot &amp; "\" &amp; sQueue,"PathName",sValue
+NewQueue.PathName = sValue
+oReg.GetStringValue HKEY_LOCAL_MACHINE,sRegRoot &amp; "\" &amp; sQueue,"Quota",sValue
+NewQueue.Quota = sValue
+oReg.GetStringValue HKEY_LOCAL_MACHINE,sRegRoot &amp; "\" &amp; sQueue,"JournalEnabled",sValue
+NewQueue.JournalEnabled = sValue
+oReg.GetStringValue HKEY_LOCAL_MACHINE,sRegRoot &amp; "\" &amp; sQueue,"JournalQuota",sValue
+NewQueue.JournalQuota = sValue
+Set PublicQueues(i) = NewQueue
+i=i+1
+Next
+ReDim Preserve PublicQueues(i)
+If Err &lt;&gt; 0 Then
+sMessage =	VbCrLf &amp; "Public Queues registry key not found." &amp; VbCrLf &amp; _
+sRegRoot &amp; "."
+Call ThrowScriptError(EVENTNO_ERROR_REGKEYNOTFOUND,EVENT_LEVEL_WARNING,sMessage,False)
+GetPublicQueues = Array("")
+End If
+
+GetPublicQueues = PublicQueues
+
+End Function
+
+Function GetPrivateQueue(PathName)
+Dim QueueInfo, NewQueue, sMessage
+
+Set QueueInfo = CreateObject("MSMQ.MSMQQueueInfo")
+Set NewQueue = New Queue
+NewQueue.PathName = PathName
+
+On Error Resume Next
+oQueueInfo.PathName = PathName
+oQueueInfo.Refresh
+If Err &lt;&gt; 0 Then
+sMessage =	"Could not connect to queue " &amp; QueuePath &amp; " to collect statistics." &amp; VbCrLf &amp; _
+"Error number: " &amp; Err.Number &amp; VbCrLf &amp; _
+"Error Description: " &amp; Err.Description
+Call ThrowScriptError(EVENTNO_ERROR_COULDNOTOPENQUEUE,EVENT_LEVEL_WARNING,sMessage,False)
+Else
+NewQueue.FormatName = oQueueInfo.FormatName
+NewQueue.Quota = oQueueInfo.Quota
+NewQueue.JournalEnabled = oQueueInfo.Journal
+NewQueue.JournalQuota = oQueueInfo.JournalQuota
+End If
+
+Set GetPrivateQueue = NewQueue
+
+End Function
+
+
+Sub ThrowScriptError(EventNo,Severity,Message,Abort)
+
+Message = VbCrLf &amp; "Calling MP Element ID: $MPElement$" &amp; VbCrLf &amp;  Message
+Call oAPI.LogScriptEvent(SCRIPT_NAME,EventNo,Severity,Message)
+If Abort = True Then WScript.Quit
+
+End Sub
+
+Sub LogDetail(EventNo,Message)
+
+Message = VbCrLf &amp; "Calling MP Element ID: $MPElement$" &amp; VbCrLf &amp;  Message
+If bLogDetail = True Then
+Call oAPI.LogScriptEvent(SCRIPT_NAME,EventNo,EVENT_LEVEL_INFO,Message)
+End If
+
+End Sub
+
+Function GetQueueServer(Path)
+
+	If InStr(Path,".") &gt; 0 Then
+		GetQueueServer = Left(Path,InStr(Path,".")-1)
+	Else
+		GetQueueServer = Path
+	End If
+
+End Function
+
+Function IsCluster()
+
+Dim wshNetwork
+
+Set wshNetwork = CreateObject("Wscript.Network")
+if StrComp(wshNetwork.ComputerName, GetQueueServer(sComputer), 1) &lt;&gt; 0 then
+IsCluster = True
+else
+IsCluster = False
+End if
+
+End Function
+
+Class QueueStat
+
+Private Sub Class_Initialize()
+MessagesInQueue = 0
+KBytesInQueue = 0
+QuotaPctg = 0
+MessagesInJournalQueue = 0
+KBytesInJournalQueue = 0
+JournalQuotaPctg = 0
+End Sub
+
+Public ComputerName
+Public QueuePath
+Public MessagesInQueue
+Public KBytesInQueue
+Public QuotaPctg
+Public MessagesInJournalQueue
+Public KBytesInJournalQueue
+Public JournalQuotaPctg
+Public ConnectionStatus
+Public OldestMessageDateTime
+Public OldestMessageAge
+Public NewestMessageDateTime
+Public NewestMessageAge
+
+End Class
+
+Class Queue
+
+Public ComputerName
+Public PathName
+Public FormatName
+Public IsPublic
+Public IsTransactional
+Public Label
+Public PrivilegeLevel
+Public Quota
+Public JournalEnabled
+Public JournalQuota
+Public AdsPath
+Public IsTestQueue
+
+End Class</ScriptBody>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </DataSource>
+              <ConditionDetection ID="Filter" TypeID="System!System.ExpressionFilter">
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery>Property[@Name='Queue Path']</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value>$Config/QueuePath$</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+              </ConditionDetection>
+            </MemberModules>
+            <Composition>
+              <Node ID="Filter">
+                <Node ID="DS" />
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.PropertyBagData</OutputType>
+      </DataSourceModuleType>	  
       <WriteActionModuleType ID="MSMQ.PurgeQueue.WA" Accessibility="Public" RunAs="MSMQ.RunAsProfile" Batching="false">
         <Configuration>
           <xsd:element minOccurs="1" name="Computer" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
@@ -1909,6 +2346,112 @@ End Class</ScriptBody>
             </RegularDetection>
             <RegularDetection MonitorTypeStateID="Warning">
               <Node ID="WarningCondition">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+          </RegularDetections>
+        </MonitorImplementation>
+      </UnitMonitorType>
+      <UnitMonitorType ID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType" Accessibility="Public">
+        <MonitorTypeStates>
+          <MonitorTypeState ID="ErrorState" NoDetection="false" />
+          <MonitorTypeState ID="WarningState" NoDetection="false" />
+          <MonitorTypeState ID="SuccessState" NoDetection="false" />
+        </MonitorTypeStates>
+        <Configuration>
+          <xsd:element minOccurs="1" name="IntervalSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="ComputerName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="QueuePath" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="CounterName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="LogDetail" type="xsd:boolean" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="WarningThresholdValue" type="xsd:double" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="ErrorThresholdValue" type="xsd:double" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="TimeoutSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="WarningThresholdValue" Selector="$Config/WarningThresholdValue$" ParameterType="double" />
+          <OverrideableParameter ID="ErrorThresholdValue" Selector="$Config/ErrorThresholdValue$" ParameterType="double" />
+          <OverrideableParameter ID="LogDetail" Selector="$Config/LogDetail$" ParameterType="bool" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <MonitorImplementation>
+          <MemberModules>
+            <DataSource ID="DS" TypeID="MSMQ.QueueStats.Legacy.DS">
+              <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+              <ComputerName>$Config/ComputerName$</ComputerName>
+              <QueuePath>$Config/QueuePath$</QueuePath>
+              <LogDetail>$Config/LogDetail$</LogDetail>
+              <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+            </DataSource>
+            <ConditionDetection ID="FilterLessThanThreshold" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="Double">Property[@Name='$Config/CounterName$']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Less</Operator>
+                  <ValueExpression>
+                    <Value Type="Double">$Config/WarningThresholdValue$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="FilterGreaterThanWarningThreshold" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <And>
+                  <Expression>
+                    <SimpleExpression>
+                      <ValueExpression>
+                        <XPathQuery Type="Double">Property[@Name='$Config/CounterName$']</XPathQuery>
+                      </ValueExpression>
+                      <Operator>GreaterEqual</Operator>
+                      <ValueExpression>
+                        <Value Type="Double">$Config/WarningThresholdValue$</Value>
+                      </ValueExpression>
+                    </SimpleExpression>
+                  </Expression>
+                  <Expression>
+                    <SimpleExpression>
+                      <ValueExpression>
+                        <XPathQuery Type="Double">Property[@Name='$Config/CounterName$']</XPathQuery>
+                      </ValueExpression>
+                      <Operator>Less</Operator>
+                      <ValueExpression>
+                        <Value Type="Double">$Config/ErrorThresholdValue$</Value>
+                      </ValueExpression>
+                    </SimpleExpression>
+                  </Expression>
+                </And>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="FilterGreaterThanErrorThreshold" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="Double">Property[@Name='$Config/CounterName$']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>GreaterEqual</Operator>
+                  <ValueExpression>
+                    <Value Type="Double">$Config/ErrorThresholdValue$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+          </MemberModules>
+          <RegularDetections>
+            <RegularDetection MonitorTypeStateID="ErrorState">
+              <Node ID="FilterGreaterThanErrorThreshold">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="WarningState">
+              <Node ID="FilterGreaterThanWarningThreshold">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="SuccessState">
+              <Node ID="FilterLessThanThreshold">
                 <Node ID="DS" />
               </Node>
             </RegularDetection>
@@ -7909,6 +8452,30 @@ End Class</ScriptBody>
           <CheckStartupType>true</CheckStartupType>
         </Configuration>
       </UnitMonitor>
+      <UnitMonitor ID="MSMQ.Queue.OldestMessage.Monitor" Accessibility="Public" Enabled="false" Target="MSMQ.Queue" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType" ConfirmDelivery="false">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="MSMQ.Queue.OldestMessage.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>Error</AlertSeverity>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="ExceededErrorThreshold" MonitorTypeStateID="ErrorState" HealthState="Error" />
+          <OperationalState ID="ExceededWarningThreshold" MonitorTypeStateID="WarningState" HealthState="Warning" />
+          <OperationalState ID="WithinThreshold" MonitorTypeStateID="SuccessState" HealthState="Success" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>900</IntervalSeconds>
+          <ComputerName>$Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+          <QueuePath>$Target/Property[Type="MSMQ.Queue"]/PathName$</QueuePath>
+          <CounterName>Oldest Message Age</CounterName>
+          <LogDetail>false</LogDetail>
+          <WarningThresholdValue>0</WarningThresholdValue>
+          <ErrorThresholdValue>0</ErrorThresholdValue>
+          <TimeoutSeconds>300</TimeoutSeconds>
+        </Configuration>
+      </UnitMonitor>	  
       <DependencyMonitor ID="MSMQ.QueueToServer.Availability.Rollup.Monitor" Accessibility="Public" Enabled="true" Target="MSMQ.Server" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" RelationshipType="MSMQ.ServerHostsQueue.Relationship" MemberMonitor="Health!System.Health.AvailabilityState">
         <Category>AvailabilityHealth</Category>
         <Algorithm>WorstOf</Algorithm>
@@ -8204,6 +8771,7 @@ End Class</ScriptBody>
       <StringResource ID="MSMQ.Queue.KBytesInQueue.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Queue.MessagesInJournalQueue.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Queue.KBytesInJournalQueue.Monitor.AlertMessage" />
+      <StringResource ID="MSMQ.Queue.OldestMessage.Monitor.AlertMessage" />	  
       <StringResource ID="MSMQ.Service.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Triggers.Service.Monitor.AlertMessage" />
       <StringResource ID="MSMQ.Rule.Alert.Event2199.AlertMessage" />
@@ -9735,6 +10303,47 @@ Journal Percent Used: {8}
           <Name>Sessions</Name>
           <Description />
         </DisplayString>
+        <DisplayString ElementID="MSMQ.QueueStats.Legacy.DS">
+          <Name>Property Bag</Name>
+          <Description>Property Bag that collects queue statistics</Description>
+        </DisplayString>  
+        <DisplayString ElementID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType">
+          <Name>MSMQ QueueStats Legacy ThreeState MonitorType</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType" SubElementID="ErrorThresholdValue">
+          <Name>Error Threshold Seconds</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType" SubElementID="IntervalSeconds">
+          <Name>Interval Seconds</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType" SubElementID="LogDetail">
+          <Name>Log Detail</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType" SubElementID="TimeoutSeconds">
+          <Name>Timeout Seconds</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.QueueStats.Legacy.ThreeState.MonitorType" SubElementID="WarningThresholdValue">
+          <Name>Warning Threshold Seconds</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.OldestMessage.Monitor">
+          <Name>MSMQ Oldest Message in Queue Threshold Monitor</Name>
+          <Description>This monitor checks the age of the oldest message in a queue (measure in seconds).
+When the oldest message in the queue is older than the set threshold in seconds the monitor will be unhealthy.	  
+		  </Description>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.OldestMessage.Monitor" SubElementID="ExceededErrorThreshold">
+          <Name>Exceeded Error Threshold</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.OldestMessage.Monitor" SubElementID="ExceededWarningThreshold">
+          <Name>Exceeded Warning Threshold</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.OldestMessage.Monitor" SubElementID="WithinThreshold">
+          <Name>Within Threshold</Name>
+        </DisplayString>
+        <DisplayString ElementID="MSMQ.Queue.OldestMessage.Monitor.AlertMessage">
+          <Name>The age of the oldest message in the queue has exceeded the threshold.</Name>
+          <Description>The age of the oldest message in the queue has exceeded the threshold.</Description>
+        </DisplayString>		
       </DisplayStrings>
       <KnowledgeArticles>
         <KnowledgeArticle ElementID="MSMQ" Visible="true">
