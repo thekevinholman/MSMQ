@@ -1,4 +1,4 @@
-# MSMQ 10.0.3.2
+# MSMQ 10.0.3.3
 
 ## [Download Here][Download]
 
@@ -24,3 +24,4 @@ Key Monitoring Scenarios:
 History:
 * 10.0.2.0 - Original release
 * 10.0.3.2 - Fixed bug in Client OS MSMQ discovery
+* 10.0.3.3 - Added oldest message in queue monitor
